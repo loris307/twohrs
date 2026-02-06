@@ -1,0 +1,58 @@
+-- NOTE: These cron jobs require the pg_cron extension which is available in Supabase.
+-- Run these via the Supabase SQL Editor or Dashboard.
+-- Times are in UTC. 22:55 UTC = 23:55 CET (Winter) / 00:55 CEST (Summer)
+-- 23:05 UTC = 00:05 CET (Winter) / 01:05 CEST (Summer)
+
+-- Enable pg_cron if not already enabled
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Job 1: Archive leaderboard at 22:55 UTC (= ~23:55 CET)
+-- SELECT cron.schedule(
+--   'archive-leaderboard',
+--   '55 22 * * *',
+--   $$
+--     INSERT INTO public.daily_leaderboard (date, user_id, rank, total_upvotes, total_posts, best_post_caption, best_post_upvotes)
+--     SELECT
+--       CURRENT_DATE AT TIME ZONE 'Europe/Berlin' AS date,
+--       p.user_id,
+--       ROW_NUMBER() OVER (ORDER BY SUM(p.upvote_count) DESC) AS rank,
+--       COALESCE(SUM(p.upvote_count), 0) AS total_upvotes,
+--       COUNT(p.id) AS total_posts,
+--       (SELECT caption FROM public.posts WHERE user_id = p.user_id ORDER BY upvote_count DESC LIMIT 1) AS best_post_caption,
+--       MAX(p.upvote_count) AS best_post_upvotes
+--     FROM public.posts p
+--     GROUP BY p.user_id
+--     HAVING COUNT(p.id) > 0
+--     ORDER BY total_upvotes DESC
+--     LIMIT 100
+--     ON CONFLICT (date, user_id) DO UPDATE SET
+--       rank = EXCLUDED.rank,
+--       total_upvotes = EXCLUDED.total_upvotes,
+--       total_posts = EXCLUDED.total_posts,
+--       best_post_caption = EXCLUDED.best_post_caption,
+--       best_post_upvotes = EXCLUDED.best_post_upvotes;
+--
+--     -- Update days_won for rank 1
+--     UPDATE public.profiles
+--     SET days_won = days_won + 1
+--     WHERE id = (
+--       SELECT user_id FROM public.daily_leaderboard
+--       WHERE date = CURRENT_DATE AT TIME ZONE 'Europe/Berlin'
+--       AND rank = 1
+--       LIMIT 1
+--     );
+--   $$
+-- );
+
+-- Job 2: Delete daily content at 23:05 UTC (= ~00:05 CET)
+-- SELECT cron.schedule(
+--   'cleanup-daily-content',
+--   '5 23 * * *',
+--   $$
+--     DELETE FROM public.votes;
+--     DELETE FROM public.posts;
+--   $$
+-- );
+
+-- NOTE: Storage cleanup is handled by a Supabase Edge Function or Vercel Cron
+-- that calls the /api/cron/cleanup endpoint.
