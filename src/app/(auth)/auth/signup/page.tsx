@@ -1,53 +1,126 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { UserPlus, Share2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/actions/auth";
 
+const SHARE_TEXT =
+  "Ich bin gerade 2Hours beigetreten — ein soziales Netzwerk, das nur 2 Stunden am Tag offen hat. Jeden Abend 20-22 Uhr. Bist du dabei?";
+const SHARE_URL = typeof window !== "undefined" ? window.location.origin : "https://2hours.app";
+
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState<"form" | "share">("form");
+  const [formData, setFormData] = useState<FormData | null>(null);
+  const [hasShared, setHasShared] = useState(false);
+  const router = useRouter();
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsLoading(true);
+    // Save form data and move to share step
+    setFormData(new FormData(e.currentTarget));
+    setStep("share");
+  }
 
-    const formData = new FormData(e.currentTarget);
+  const handleShare = useCallback(async () => {
+    // Try native Web Share API first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "2Hours — Social Media. 2 Stunden.",
+          text: SHARE_TEXT,
+          url: SHARE_URL,
+        });
+        setHasShared(true);
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to mark as shared anyway
+        // (they at least opened the share dialog)
+        setHasShared(true);
+        return;
+      }
+    }
+
+    // Fallback: open WhatsApp share
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT + " " + SHARE_URL)}`;
+    window.open(whatsappUrl, "_blank");
+    setHasShared(true);
+  }, []);
+
+  async function handleComplete() {
+    if (!formData) return;
+    setIsLoading(true);
 
     try {
       const result = await signUp(formData);
       if (!result.success) {
         toast.error(result.error);
+        setStep("form");
       } else {
-        setSuccess(true);
+        toast.success("Willkommen bei 2Hours!");
+        router.push("/");
       }
     } catch {
       toast.error("Ein Fehler ist aufgetreten");
+      setStep("form");
     } finally {
       setIsLoading(false);
     }
   }
 
-  if (success) {
+  if (step === "share") {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-md space-y-6 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <UserPlus className="h-8 w-8 text-primary" />
+        <div className="w-full max-w-md space-y-8 text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <Share2 className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Bestätige deine E-Mail</h1>
-          <p className="text-muted-foreground">
-            Wir haben dir eine E-Mail gesendet. Klicke auf den Link darin,
-            um deinen Account zu aktivieren.
-          </p>
-          <Link
-            href="/auth/login"
-            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Zum Login
-          </Link>
+
+          <div className="space-y-3">
+            <h1 className="text-2xl font-bold tracking-tight">
+              Fast geschafft!
+            </h1>
+            <p className="text-muted-foreground">
+              2Hours lebt von der Community. Teile die App mit einem Freund,
+              deiner Oma oder wem auch immer — Hauptsache, jemand erfährt davon.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleShare}
+              className="inline-flex h-12 w-full items-center justify-center gap-3 rounded-md border border-border bg-card px-6 text-base font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <Share2 className="h-5 w-5" />
+              Mit jemandem teilen
+            </button>
+
+            {hasShared && (
+              <button
+                onClick={handleComplete}
+                disabled={isLoading}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isLoading ? (
+                  "Account wird erstellt..."
+                ) : (
+                  <>
+                    Weiter
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {!hasShared && (
+            <p className="text-xs text-muted-foreground">
+              Du musst die App einmal teilen, um fortzufahren.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -65,7 +138,7 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleFormSubmit} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium">
               E-Mail
@@ -135,17 +208,10 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            {isLoading ? (
-              <span className="animate-spin">...</span>
-            ) : (
-              <>
-                <UserPlus className="h-4 w-4" />
-                Registrieren
-              </>
-            )}
+            <UserPlus className="h-4 w-4" />
+            Weiter
           </button>
         </form>
 
