@@ -18,11 +18,36 @@ export default function SignupPage() {
   const [hasShared, setHasShared] = useState(false);
   const router = useRouter();
 
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
   async function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Save form data and move to share step
-    setFormData(new FormData(e.currentTarget));
-    setStep("share");
+    const data = new FormData(e.currentTarget);
+
+    if (isMobile()) {
+      // Mobile: show share step first
+      setFormData(data);
+      setStep("share");
+    } else {
+      // Desktop: skip share, create account directly
+      setFormData(data);
+      setIsLoading(true);
+      try {
+        const result = await signUp(data);
+        if (!result.success) {
+          toast.error(result.error);
+        } else {
+          toast.success("Willkommen bei 2Hours!");
+          router.push("/");
+        }
+      } catch {
+        toast.error("Ein Fehler ist aufgetreten");
+      } finally {
+        setIsLoading(false);
+      }
+    }
   }
 
   const handleShare = useCallback(async () => {
@@ -208,10 +233,17 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            disabled={isLoading}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            <UserPlus className="h-4 w-4" />
-            Weiter
+            {isLoading ? (
+              "Account wird erstellt..."
+            ) : (
+              <>
+                <UserPlus className="h-4 w-4" />
+                Registrieren
+              </>
+            )}
           </button>
         </form>
 
