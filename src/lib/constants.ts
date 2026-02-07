@@ -5,8 +5,9 @@ export const CLOSE_MINUTE = 0;
 export const GRACE_MINUTES = 5;
 export const TIMEZONE = "Europe/Berlin";
 
-export const MAX_POSTS_PER_SESSION = 10;
+export const MAX_POSTS_PER_SESSION = 100;
 export const MAX_CAPTION_LENGTH = 280;
+export const MAX_COMMENT_LENGTH = 500;
 export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
@@ -18,6 +19,11 @@ export const ALLOWED_IMAGE_TYPES = [
 ] as const;
 
 export const FEED_PAGE_SIZE = 20;
+
+export const FEED_TABS = ["live", "hot", "following"] as const;
+export type FeedTab = (typeof FEED_TABS)[number];
+export const DEFAULT_FEED_TAB: FeedTab = "live";
+export const HOT_MIN_UPVOTES = 3;
 
 export const PUBLIC_ROUTES = [
   "/",
@@ -35,6 +41,7 @@ export const ALWAYS_ACCESSIBLE_ROUTES = [
   "/auth/callback",
   "/settings",
   "/leaderboard/history",
+  "/leaderboard/top-posts",
 ];
 
 export const TIME_GATED_ROUTES = ["/feed", "/create", "/leaderboard"];

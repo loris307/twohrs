@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   MAX_CAPTION_LENGTH,
+  MAX_COMMENT_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
   ALLOWED_IMAGE_TYPES,
 } from "./constants";
@@ -37,6 +38,13 @@ export const createPostSchema = z.object({
     .string()
     .max(MAX_CAPTION_LENGTH, `Caption darf maximal ${MAX_CAPTION_LENGTH} Zeichen haben`)
     .optional(),
+});
+
+export const createCommentSchema = z.object({
+  text: z
+    .string()
+    .min(1, "Kommentar darf nicht leer sein")
+    .max(MAX_COMMENT_LENGTH, `Kommentar darf maximal ${MAX_COMMENT_LENGTH} Zeichen haben`),
 });
 
 export const updateProfileSchema = z.object({

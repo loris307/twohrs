@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import type { LeaderboardEntry, DailyLeaderboardEntry } from "@/lib/types";
+import type {
+  LeaderboardEntry,
+  DailyLeaderboardEntry,
+  TopPostAllTime,
+} from "@/lib/types";
 
 export async function getTodayLeaderboard(): Promise<LeaderboardEntry[]> {
   const supabase = await createClient();
@@ -90,4 +94,23 @@ export async function getLeaderboardHistory(
     })[],
     dates,
   };
+}
+
+export async function getTopPostsAllTime(): Promise<TopPostAllTime[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("top_posts_all_time")
+    .select(
+      `
+      *,
+      profiles (username, display_name, avatar_url)
+    `
+    )
+    .order("upvote_count", { ascending: false })
+    .limit(20);
+
+  if (error || !data) return [];
+
+  return data as unknown as TopPostAllTime[];
 }

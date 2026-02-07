@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { History } from "lucide-react";
+import { History, Crown } from "lucide-react";
 import { getTodayLeaderboard } from "@/lib/queries/leaderboard";
 import { LeaderboardTable } from "@/components/leaderboard/leaderboard-table";
 
@@ -14,13 +14,22 @@ export default function LeaderboardPage() {
             Wer ist heute am lustigsten?
           </p>
         </div>
-        <Link
-          href="/leaderboard/history"
-          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-        >
-          <History className="h-4 w-4" />
-          Archiv
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/leaderboard/top-posts"
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <Crown className="h-4 w-4" />
+            Hall of Fame
+          </Link>
+          <Link
+            href="/leaderboard/history"
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            <History className="h-4 w-4" />
+            Archiv
+          </Link>
+        </div>
       </div>
 
       <Suspense

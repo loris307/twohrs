@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // === Archive top post of the day ===
+    await archiveTopPost(supabase, berlinDate);
+
     return NextResponse.json({
       message: `Archived ${entries.length} entries for ${berlinDate}`,
     });
@@ -109,6 +112,105 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+const MAX_TOP_POSTS = 20;
+
+async function archiveTopPost(
+  supabase: ReturnType<typeof createAdminClient>,
+  berlinDate: string
+) {
+  // Find the #1 post by upvotes today
+  const { data: topPost } = await supabase
+    .from("posts")
+    .select("id, user_id, image_url, image_path, caption, upvote_count")
+    .order("upvote_count", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!topPost || topPost.upvote_count === 0) return;
+
+  // Get current top posts count
+  const { count } = await supabase
+    .from("top_posts_all_time")
+    .select("*", { count: "exact", head: true });
+
+  const currentCount = count ?? 0;
+
+  // Check if we need to replace the weakest entry
+  if (currentCount >= MAX_TOP_POSTS) {
+    const { data: weakest } = await supabase
+      .from("top_posts_all_time")
+      .select("id, upvote_count, image_path")
+      .order("upvote_count", { ascending: true })
+      .limit(1)
+      .single();
+
+    if (weakest && topPost.upvote_count <= weakest.upvote_count) {
+      return; // Today's top post isn't strong enough
+    }
+
+    // Remove the weakest entry and its image
+    if (weakest) {
+      if (weakest.image_path) {
+        await supabase.storage.from("memes").remove([weakest.image_path]);
+      }
+      await supabase
+        .from("top_posts_all_time")
+        .delete()
+        .eq("id", weakest.id);
+    }
+  }
+
+  let permanentUrl: string | null = null;
+  let permanentPath: string | null = null;
+
+  // Copy image to permanent location (only if post has an image)
+  if (topPost.image_path) {
+    const ext = topPost.image_path.split(".").pop() || "jpg";
+    permanentPath = `top-posts/${berlinDate}.${ext}`;
+
+    const { error: copyError } = await supabase.storage
+      .from("memes")
+      .copy(topPost.image_path, permanentPath);
+
+    if (copyError) {
+      console.error("Failed to copy top post image:", copyError.message);
+      // Continue without image — text-only posts are still valid
+    } else {
+      permanentUrl = supabase.storage
+        .from("memes")
+        .getPublicUrl(permanentPath).data.publicUrl;
+    }
+  }
+
+  // Fetch top 3 comments for this post
+  const { data: topComments } = await supabase
+    .from("comments")
+    .select("text, upvote_count, user_id, profiles!comments_user_id_fkey (username)")
+    .eq("post_id", topPost.id)
+    .order("upvote_count", { ascending: false })
+    .limit(3);
+
+  const topCommentsJson = (topComments ?? []).map((c) => ({
+    username: (c.profiles as unknown as { username: string }).username,
+    text: c.text,
+    upvote_count: c.upvote_count,
+  }));
+
+  // Insert into top_posts_all_time
+  await supabase.from("top_posts_all_time").upsert(
+    {
+      date: berlinDate,
+      user_id: topPost.user_id,
+      image_url: permanentUrl,
+      image_path: permanentPath,
+      caption: topPost.caption,
+      upvote_count: topPost.upvote_count,
+      top_comments: topCommentsJson,
+    },
+    { onConflict: "date" }
+  );
 }
 
 // Also support GET for Vercel Cron

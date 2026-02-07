@@ -12,7 +12,12 @@
       "Bash([ -s \"$NVM_DIR/nvm.sh\" ])",
       "Bash(. \"$NVM_DIR/nvm.sh\")",
       "Bash(ffprobe:*)",
-      "Bash(ffmpeg:*)"
+      "Bash(ffmpeg:*)",
+      "WebFetch(domain:www.namecheap.com)",
+      "WebSearch",
+      "WebFetch(domain:who.is)",
+      "Bash(pnpm dev)",
+      "Bash(npx vercel:*)"
     ]
   }
 }

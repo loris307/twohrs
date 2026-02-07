@@ -11,7 +11,27 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient();
 
   try {
-    // 1. Delete all votes
+    // 1. Delete all comment votes
+    const { error: commentVotesError } = await supabase
+      .from("comment_votes")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+
+    if (commentVotesError) {
+      console.error("Failed to delete comment votes:", commentVotesError);
+    }
+
+    // 2. Delete all comments
+    const { error: commentsError } = await supabase
+      .from("comments")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+
+    if (commentsError) {
+      console.error("Failed to delete comments:", commentsError);
+    }
+
+    // 3. Delete all votes
     const { error: votesError } = await supabase
       .from("votes")
       .delete()
@@ -21,7 +41,7 @@ export async function POST(request: NextRequest) {
       console.error("Failed to delete votes:", votesError);
     }
 
-    // 2. Delete all posts
+    // 4. Delete all posts
     const { error: postsError } = await supabase
       .from("posts")
       .delete()
@@ -39,7 +59,7 @@ export async function POST(request: NextRequest) {
     if (files && files.length > 0) {
       // List files in each user folder
       for (const folder of files) {
-        if (folder.id) continue; // skip files at root level
+        if (folder.id || folder.name === "top-posts") continue; // skip files at root level + permanent top posts
 
         const { data: userFiles } = await supabase.storage
           .from("memes")
@@ -56,6 +76,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: "Cleanup completed",
+      deletedCommentVotes: !commentVotesError,
+      deletedComments: !commentsError,
       deletedVotes: !votesError,
       deletedPosts: !postsError,
     });

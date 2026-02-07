@@ -1,11 +1,24 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { PlusSquare } from "lucide-react";
-import { getFeed } from "@/lib/queries/posts";
+import { getFeedByTab } from "@/lib/queries/posts";
 import { PostGrid } from "@/components/feed/post-grid";
+import { FeedTabs } from "@/components/feed/feed-tabs";
 import { FeedSkeleton } from "@/components/feed/feed-skeleton";
+import { FEED_TABS, DEFAULT_FEED_TAB } from "@/lib/constants";
+import type { FeedTab } from "@/lib/constants";
 
-export default function FeedPage() {
+interface FeedPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function FeedPage({ searchParams }: FeedPageProps) {
+  const params = await searchParams;
+  const tabParam = params.tab || DEFAULT_FEED_TAB;
+  const tab: FeedTab = FEED_TABS.includes(tabParam as FeedTab)
+    ? (tabParam as FeedTab)
+    : DEFAULT_FEED_TAB;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -19,15 +32,17 @@ export default function FeedPage() {
         </Link>
       </div>
 
-      <Suspense fallback={<FeedSkeleton />}>
-        <FeedContent />
+      <FeedTabs activeTab={tab} />
+
+      <Suspense key={tab} fallback={<FeedSkeleton />}>
+        <FeedContent tab={tab} />
       </Suspense>
     </div>
   );
 }
 
-async function FeedContent() {
-  const { posts, nextCursor } = await getFeed();
+async function FeedContent({ tab }: { tab: FeedTab }) {
+  const { posts, nextCursor } = await getFeedByTab(tab);
 
-  return <PostGrid initialPosts={posts} initialCursor={nextCursor} />;
+  return <PostGrid initialPosts={posts} initialCursor={nextCursor} tab={tab} />;
 }

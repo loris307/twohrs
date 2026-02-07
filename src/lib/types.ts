@@ -14,11 +14,16 @@ export type Profile = {
 export type Post = {
   id: string;
   user_id: string;
-  image_url: string;
-  image_path: string;
+  image_url: string | null;
+  image_path: string | null;
   caption: string | null;
   upvote_count: number;
+  comment_count: number;
   created_at: string;
+  og_title: string | null;
+  og_description: string | null;
+  og_image: string | null;
+  og_url: string | null;
 };
 
 export type PostWithAuthor = Post & {
@@ -57,6 +62,43 @@ export type LeaderboardEntry = {
   total_upvotes: number;
   post_count: number;
   profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
+};
+
+export type TopPostAllTime = {
+  id: string;
+  date: string;
+  user_id: string;
+  image_url: string | null;
+  image_path: string | null;
+  caption: string | null;
+  upvote_count: number;
+  created_at: string;
+  og_title: string | null;
+  og_description: string | null;
+  og_image: string | null;
+  og_url: string | null;
+  top_comments: TopComment[];
+  profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
+};
+
+export type TopComment = {
+  username: string;
+  text: string;
+  upvote_count: number;
+};
+
+export type Comment = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  text: string;
+  upvote_count: number;
+  created_at: string;
+};
+
+export type CommentWithAuthor = Comment & {
+  profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
+  has_voted: boolean;
 };
 
 export type AppConfig = {
