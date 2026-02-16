@@ -10,6 +10,7 @@ import { PostCard } from "@/components/feed/post-card";
 import { PostComments } from "./post-comments";
 import { AppShell } from "@/app/(app)/app-shell";
 import { isAppOpen } from "@/lib/utils/time";
+import { OPEN_HOUR, CLOSE_HOUR } from "@/lib/constants";
 import type { Metadata } from "next";
 
 interface PostPageProps {
@@ -30,7 +31,7 @@ export async function generateMetadata({
     .single();
 
   if (!post) {
-    return { title: "Post nicht gefunden — twohrs" };
+    return { title: "Verpasst — twohrs" };
   }
 
   const title = post.caption
@@ -72,8 +73,9 @@ export default async function PostPage({ params }: PostPageProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Unauthenticated or app closed: show minimal branded page
+  // Unauthenticated or app closed: show branded teaser / "missed it" page
   if (!user || !isAppOpen()) {
+    // Try to load the post (it may still exist or may have been deleted)
     const adminSupabase = createAdminClient();
     const { data: post } = await adminSupabase
       .from("posts")
@@ -83,33 +85,45 @@ export default async function PostPage({ params }: PostPageProps) {
       .eq("id", id)
       .single();
 
-    if (!post) notFound();
-
-    const profile = post.profiles as unknown as {
+    const profile = post?.profiles as unknown as {
       username: string;
       display_name: string | null;
-    };
+    } | null;
 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
         <div className="mb-6">
           <span className="text-4xl font-bold">twohrs</span>
         </div>
-        <p className="text-lg font-medium">
-          {profile.display_name || profile.username}
-        </p>
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          {post.caption
-            ? post.caption.length > 150
-              ? post.caption.slice(0, 147) + "..."
-              : post.caption
-            : "Ein Post auf twohrs"}
-        </p>
-        <p className="mt-6 text-sm text-muted-foreground">
-          {!user
-            ? "Melde dich an, um diesen Post zu sehen."
-            : "twohrs ist gerade geschlossen. Komm heute Nacht wieder!"}
-        </p>
+        {post ? (
+          <>
+            <p className="text-lg font-medium">
+              {profile?.display_name || profile?.username}
+            </p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              {post.caption
+                ? post.caption.length > 150
+                  ? post.caption.slice(0, 147) + "..."
+                  : post.caption
+                : "Ein Post auf twohrs"}
+            </p>
+            <p className="mt-6 text-sm text-muted-foreground">
+              {!user
+                ? "Melde dich an, um diesen Post zu sehen."
+                : "twohrs ist gerade geschlossen. Komm heute Nacht wieder!"}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-2 text-lg font-medium">
+              Das hast du wohl verpasst.
+            </p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              Dieser Post existiert nicht mehr — auf twohrs wird jeden Tag alles gelöscht.
+              Sei nächstes Mal zwischen {OPEN_HOUR}:00 und {CLOSE_HOUR}:00 Uhr dabei!
+            </p>
+          </>
+        )}
         <Link
           href={!user ? "/auth/login" : "/"}
           className="mt-4 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
