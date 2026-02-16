@@ -10,6 +10,8 @@ A social network that's only open a few hours per day (currently 20:00-22:00 CET
 - **Styling:** Tailwind CSS 4
 - **Backend:** Supabase (PostgreSQL, Auth, Storage, Edge Functions)
 - **Hosting:** Vercel (2 environments: production + preview)
+- **Source Control:** GitHub ([loris307/twohrs](https://github.com/loris307/twohrs)) — public, open-source
+- **CI:** GitHub Actions (lint + type-check on PRs)
 - **Package manager:** pnpm (never npm or yarn)
 
 ## Commands
@@ -71,6 +73,8 @@ No test suite currently. The project has no test framework, test files, or cover
 - Bypass time-gate enforcement without explicit approval
 - Delete persistent tables (`profiles`, `follows`, `daily_leaderboard`, etc.)
 - Force push to main
+- Connect Vercel to GitHub (deploys are manual via CLI)
+- Push secrets, Supabase URLs/keys, or credentials to the public repo
 
 ## Project Structure
 
@@ -411,11 +415,43 @@ Runs via **PostgreSQL pg_cron** extension (configured in migration 017, NOT Verc
 
 The `/api/cron/*` endpoints still exist for manual invocation (require `Authorization: Bearer $CRON_SECRET`), but they just call the database functions.
 
+## GitHub & Version Control
+
+### Repository
+
+- **Public repo:** [github.com/loris307/twohrs](https://github.com/loris307/twohrs)
+- **Branch:** `main` (single branch, direct push)
+- **Visibility:** Public (open-source)
+
+### GitHub Actions CI
+
+A CI workflow (`.github/workflows/ci.yml`) runs on every pull request to `main`:
+- `pnpm lint` — ESLint
+- `pnpm tsc --noEmit` — TypeScript type-check
+
+This catches errors before merging external contributions.
+
+### GitHub ↔ Vercel (NOT connected)
+
+**Important:** Vercel is NOT connected to GitHub. Deployments happen manually via Vercel CLI (`vercel --yes --prod`). This means:
+- Pushing to GitHub does **not** trigger a Vercel deploy
+- Vercel deploys must be done separately from the local machine
+- The typical workflow is: commit → push to GitHub → deploy to Vercel via CLI
+- Do NOT connect Vercel to GitHub without explicit approval (would change the entire deploy flow)
+
+### Git Workflow
+
+```bash
+git add <files> && git commit -m "message"   # commit locally
+git push                                      # push to GitHub
+vercel --yes --prod                           # deploy to production (separate step!)
+```
+
 ## Deployment
 
 ### Two Environments on Vercel
 
-The project deploys directly from local to Vercel (no GitHub repo connected). There are two environments:
+Deployments happen via Vercel CLI from local (not connected to GitHub). There are two environments:
 
 | Environment | URL | Time Window | Deploy Command |
 |-------------|-----|-------------|----------------|
