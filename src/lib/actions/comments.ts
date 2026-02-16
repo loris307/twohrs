@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
+import { MAX_COMMENTS_PER_SESSION } from "@/lib/constants";
 import { createCommentSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
 import type { ActionResult } from "@/lib/types";
@@ -25,6 +26,24 @@ export async function createComment(
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  // Rate limit check
+  const today = new Date();
+  const startOfDay = new Date(today);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const { count } = await supabase
+    .from("comments")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("created_at", startOfDay.toISOString());
+
+  if ((count ?? 0) >= MAX_COMMENTS_PER_SESSION) {
+    return {
+      success: false,
+      error: `Maximal ${MAX_COMMENTS_PER_SESSION} Kommentare pro Tag erlaubt`,
+    };
   }
 
   const parsed = createCommentSchema.safeParse({ text });

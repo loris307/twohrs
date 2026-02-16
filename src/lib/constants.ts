@@ -6,6 +6,7 @@ export const GRACE_MINUTES = 5;
 export const TIMEZONE = "Europe/Berlin";
 
 export const MAX_POSTS_PER_SESSION = 100;
+export const MAX_COMMENTS_PER_SESSION = 1000;
 export const MAX_CAPTION_LENGTH = 280;
 export const MAX_COMMENT_LENGTH = 500;
 export const MAX_IMAGE_SIZE_MB = 5;
