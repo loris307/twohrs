@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Trophy, PlusSquare, User, Settings } from "lucide-react";
+import { Home, Trophy, PlusSquare, User, Compass } from "lucide-react";
+import { useUnreadMentions } from "@/lib/hooks/use-unread-mentions";
 import { cn } from "@/lib/utils/cn";
 
-export function BottomNav({ username }: { username?: string }) {
+export function BottomNav({
+  username,
+  unreadMentionCount = 0,
+}: {
+  username?: string;
+  unreadMentionCount?: number;
+}) {
   const pathname = usePathname();
+  const mentionCount = useUnreadMentions(unreadMentionCount);
 
   const items = [
     { href: "/feed", label: "Feed", icon: Home },
@@ -16,8 +24,9 @@ export function BottomNav({ username }: { username?: string }) {
       href: username ? `/profile/${username}` : "/settings",
       label: "Profil",
       icon: User,
+      badge: mentionCount,
     },
-    { href: "/settings", label: "Mehr", icon: Settings },
+    { href: "/search", label: "Entdecken", icon: Compass },
   ];
 
   return (
@@ -27,16 +36,22 @@ export function BottomNav({ username }: { username?: string }) {
           const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
+          const badge = "badge" in item ? item.badge : 0;
           return (
             <Link
               key={item.href + item.label}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-colors",
+                "relative flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
               <Icon className="h-5 w-5" />
+              {!!badge && badge > 0 && (
+                <span className="absolute -right-0.5 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-black">
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
               <span>{item.label}</span>
             </Link>
           );

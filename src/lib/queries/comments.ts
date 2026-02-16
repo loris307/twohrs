@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { CommentWithAuthor } from "@/lib/types";
+import type { CommentWithAuthor, CommentWithReplies } from "@/lib/types";
 
 export async function getCommentsByPost(
   postId: string
@@ -46,4 +46,32 @@ export async function getCommentsByPost(
     profiles: comment.profiles as unknown as CommentWithAuthor["profiles"],
     has_voted: votedCommentIds.has(comment.id),
   }));
+}
+
+export function groupCommentsWithReplies(
+  flat: CommentWithAuthor[]
+): CommentWithReplies[] {
+  const topLevel: CommentWithReplies[] = [];
+  const repliesByParent = new Map<string, CommentWithAuthor[]>();
+
+  for (const comment of flat) {
+    if (!comment.parent_comment_id) {
+      topLevel.push({ ...comment, replies: [] });
+    } else {
+      const list = repliesByParent.get(comment.parent_comment_id) ?? [];
+      list.push(comment);
+      repliesByParent.set(comment.parent_comment_id, list);
+    }
+  }
+
+  // Attach replies sorted chronologically
+  for (const parent of topLevel) {
+    const replies = repliesByParent.get(parent.id) ?? [];
+    parent.replies = replies.sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  }
+
+  return topLevel;
 }

@@ -6,6 +6,7 @@ import { Send } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUpload } from "./image-upload";
 import { OgPreview } from "./og-preview";
+import { MentionAutocomplete } from "@/components/shared/mention-autocomplete";
 import { createPostRecord } from "@/lib/actions/posts";
 import { uploadImageWithProgress } from "@/lib/utils/upload";
 import { MAX_CAPTION_LENGTH } from "@/lib/constants";
@@ -29,7 +30,22 @@ export function CreatePostForm() {
   const lastFetchedUrl = useRef<string | null>(null);
   const ogAbortRef = useRef<AbortController | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
+
+  function handleMentionSelect(username: string, startIndex: number, endIndex: number) {
+    const newCaption = caption.slice(0, startIndex) + `@${username} ` + caption.slice(endIndex);
+    setCaption(newCaption);
+    // Restore focus and cursor position after state update
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        const pos = startIndex + username.length + 2; // @username + space
+        el.setSelectionRange(pos, pos);
+      }
+    });
+  }
 
   const fetchOgData = useCallback(async (url: string) => {
     if (lastFetchedUrl.current === url) return;
@@ -154,15 +170,23 @@ export function CreatePostForm() {
             {caption.length}/{MAX_CAPTION_LENGTH}
           </span>
         </div>
-        <textarea
-          id="caption"
-          value={caption}
-          onChange={(e) => setCaption(e.target.value)}
-          maxLength={MAX_CAPTION_LENGTH}
-          rows={3}
-          placeholder={image ? "Caption hinzufügen (optional)" : "Was gibt's zu lachen?"}
-          className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            id="caption"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            maxLength={MAX_CAPTION_LENGTH}
+            rows={3}
+            placeholder={image ? "Caption hinzufügen (optional)" : "Was gibt's zu lachen?"}
+            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <MentionAutocomplete
+            inputRef={textareaRef}
+            value={caption}
+            onSelect={handleMentionSelect}
+          />
+        </div>
       </div>
 
       {ogLoading && (

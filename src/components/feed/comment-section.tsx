@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useTransition, useCallback } from "react";
+import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { CommentCard } from "./comment-card";
 import { CommentInput } from "./comment-input";
 import { formatNumber } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
-import type { CommentWithAuthor } from "@/lib/types";
+import type { CommentWithReplies } from "@/lib/types";
+
+const COMMENT_PREVIEW_LIMIT = 3;
 
 interface CommentSectionProps {
   postId: string;
@@ -18,11 +21,15 @@ export function CommentSection({
   initialCount,
 }: CommentSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [comments, setComments] = useState<CommentWithAuthor[]>([]);
+  const [comments, setComments] = useState<CommentWithReplies[]>([]);
   const [count, setCount] = useState(initialCount);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [replyingTo, setReplyingTo] = useState<{
+    commentId: string;
+    username: string;
+  } | null>(null);
 
   const fetchComments = useCallback(() => {
     startTransition(async () => {
@@ -30,7 +37,12 @@ export function CommentSection({
       if (res.ok) {
         const data = await res.json();
         setComments(data.comments);
-        setCount(data.comments.length);
+        // Total count = top-level + all replies
+        const total = data.comments.reduce(
+          (sum: number, c: CommentWithReplies) => sum + 1 + c.replies.length,
+          0
+        );
+        setCount(total);
         if (data.currentUserId) {
           setCurrentUserId(data.currentUserId);
         }
@@ -56,6 +68,14 @@ export function CommentSection({
     setCount((prev) => Math.max(0, prev - 1));
   }
 
+  function handleReply(commentId: string, username: string) {
+    setReplyingTo({ commentId, username });
+  }
+
+  function handleCancelReply() {
+    setReplyingTo(null);
+  }
+
   return (
     <div>
       {/* Toggle button */}
@@ -78,6 +98,8 @@ export function CommentSection({
           <CommentInput
             postId={postId}
             onCommentCreated={handleCommentCreated}
+            replyingTo={replyingTo}
+            onCancelReply={handleCancelReply}
           />
 
           <div className="mt-3 space-y-0.5">
@@ -93,14 +115,27 @@ export function CommentSection({
               </p>
             )}
 
-            {comments.map((comment) => (
-              <CommentCard
-                key={comment.id}
-                comment={comment}
-                currentUserId={currentUserId}
-                onDeleted={handleCommentDeleted}
-              />
+            {comments.slice(0, COMMENT_PREVIEW_LIMIT).map((comment) => (
+              <div key={comment.id}>
+                <CommentCard
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  onDeleted={handleCommentDeleted}
+                  onReply={handleReply}
+                  isReplyTarget={replyingTo?.commentId === comment.id}
+                />
+              </div>
             ))}
+
+            {/* Show "view all" if there are more top-level comments or any replies */}
+            {count > Math.min(comments.length, COMMENT_PREVIEW_LIMIT) && (
+              <Link
+                href={`/post/${postId}`}
+                className="block py-2 text-center text-sm font-medium text-primary hover:text-primary/80"
+              >
+                Alle {count} Kommentare ansehen
+              </Link>
+            )}
           </div>
         </div>
       )}

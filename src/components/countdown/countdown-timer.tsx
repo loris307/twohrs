@@ -1,7 +1,6 @@
 "use client";
 
 import { useCountdown } from "@/lib/hooks/use-countdown";
-import { formatCountdown } from "@/lib/utils/format";
 
 export function CountdownTimer() {
   const { hours, minutes, seconds } = useCountdown();
@@ -18,9 +17,6 @@ export function CountdownTimer() {
         <span className="text-4xl font-bold text-muted-foreground">:</span>
         <TimeBlock value={seconds} label="Sek" />
       </div>
-      <p className="text-lg text-muted-foreground">
-        {formatCountdown(hours, minutes, seconds)}
-      </p>
     </div>
   );
 }

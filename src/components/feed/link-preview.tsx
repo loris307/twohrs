@@ -28,6 +28,7 @@ export function LinkPreview({ title, description, image, url }: LinkPreviewProps
         <img
           src={image}
           alt={title || "Link preview"}
+          referrerPolicy="no-referrer"
           className="h-40 w-full object-cover"
         />
       )}

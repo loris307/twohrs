@@ -21,7 +21,13 @@ export function isAppOpen(now?: Date): boolean {
   const openMinutes = OPEN_HOUR * 60 + OPEN_MINUTE;
   const closeMinutes = CLOSE_HOUR * 60 + CLOSE_MINUTE + GRACE_MINUTES;
 
-  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  if (openMinutes <= closeMinutes) {
+    // Same day (e.g., 20:00–22:00)
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  } else {
+    // Crosses midnight (e.g., 23:00–02:00)
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+  }
 }
 
 export function isGracePeriod(now?: Date): boolean {
@@ -33,7 +39,15 @@ export function isGracePeriod(now?: Date): boolean {
   const closeMinutes = CLOSE_HOUR * 60 + CLOSE_MINUTE;
   const graceEndMinutes = closeMinutes + GRACE_MINUTES;
 
-  return currentMinutes >= closeMinutes && currentMinutes < graceEndMinutes;
+  if (graceEndMinutes <= 1440) {
+    return currentMinutes >= closeMinutes && currentMinutes < graceEndMinutes;
+  } else {
+    // Grace period wraps past midnight
+    return (
+      currentMinutes >= closeMinutes ||
+      currentMinutes < graceEndMinutes - 1440
+    );
+  }
 }
 
 export function getNextOpenTime(): Date {
@@ -58,6 +72,11 @@ export function getTimeRemainingMs(): number {
   const closeTime = new Date(now);
   closeTime.setHours(CLOSE_HOUR, CLOSE_MINUTE, 0, 0);
 
+  // If window crosses midnight and we're before midnight, close is tomorrow
+  if (CLOSE_HOUR < OPEN_HOUR && now.getHours() >= OPEN_HOUR) {
+    closeTime.setDate(closeTime.getDate() + 1);
+  }
+
   return Math.max(0, closeTime.getTime() - now.getTime());
 }
 
@@ -70,9 +89,20 @@ export function getSessionProgressPercent(): number {
   const currentMinutes = hours * 60 + minutes;
 
   const openMinutes = OPEN_HOUR * 60 + OPEN_MINUTE;
-  const closeMinutes = CLOSE_HOUR * 60 + CLOSE_MINUTE;
+  let closeMinutes = CLOSE_HOUR * 60 + CLOSE_MINUTE;
+
+  // Handle midnight crossing
+  if (closeMinutes < openMinutes) {
+    closeMinutes += 1440;
+  }
+
+  let adjustedCurrent = currentMinutes;
+  if (currentMinutes < openMinutes) {
+    adjustedCurrent += 1440;
+  }
+
   const totalMinutes = closeMinutes - openMinutes;
-  const elapsed = currentMinutes - openMinutes;
+  const elapsed = adjustedCurrent - openMinutes;
 
   return Math.min(100, Math.max(0, (elapsed / totalMinutes) * 100));
 }
@@ -83,7 +113,7 @@ export function getCountdownToOpen(): {
   seconds: number;
   totalMs: number;
 } {
-  const now = new Date();
+  const now = getNowInTimezone();
   const nextOpen = getNextOpenTime();
   const totalMs = Math.max(0, nextOpen.getTime() - now.getTime());
 

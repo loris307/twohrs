@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { ImagePlus, Camera, X } from "lucide-react";
 import { validateImage, compressImage } from "@/lib/utils/image";
 import { toast } from "sonner";
 
@@ -12,7 +12,13 @@ interface ImageUploadProps {
 export function ImageUpload({ onImageSelect }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  }, []);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -52,7 +58,8 @@ export function ImageUpload({ onImageSelect }: ImageUploadProps) {
   const removeImage = () => {
     setPreview(null);
     onImageSelect(null);
-    if (inputRef.current) inputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   return (
@@ -74,9 +81,28 @@ export function ImageUpload({ onImageSelect }: ImageUploadProps) {
             <X className="h-4 w-4" />
           </button>
         </div>
+      ) : isMobile ? (
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => { if (cameraInputRef.current) { cameraInputRef.current.value = ""; cameraInputRef.current.click(); } }}
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-8 transition-colors hover:border-muted-foreground"
+          >
+            <Camera className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">Foto aufnehmen</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (galleryInputRef.current) { galleryInputRef.current.value = ""; galleryInputRef.current.click(); } }}
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border p-8 transition-colors hover:border-muted-foreground"
+          >
+            <ImagePlus className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">Aus Galerie</p>
+          </button>
+        </div>
       ) : (
         <div
-          onClick={() => inputRef.current?.click()}
+          onClick={() => galleryInputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={(e) => {
             e.preventDefault();
@@ -100,10 +126,20 @@ export function ImageUpload({ onImageSelect }: ImageUploadProps) {
           </div>
         </div>
       )}
+      {/* Gallery input — no capture attribute */}
       <input
-        ref={inputRef}
+        ref={galleryInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp"
+        accept="image/*"
+        onChange={handleChange}
+        className="hidden"
+      />
+      {/* Camera input — capture attribute opens camera directly */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         onChange={handleChange}
         className="hidden"
       />

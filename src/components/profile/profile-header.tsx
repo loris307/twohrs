@@ -52,14 +52,20 @@ export function ProfileHeader({
           )}
 
           <div className="flex gap-4 text-sm">
-            <span>
+            <Link
+              href={`/profile/${profile.username}/followers`}
+              className="transition-colors hover:text-primary"
+            >
               <strong>{formatNumber(followerCount)}</strong>{" "}
               <span className="text-muted-foreground">Follower</span>
-            </span>
-            <span>
+            </Link>
+            <Link
+              href={`/profile/${profile.username}/following`}
+              className="transition-colors hover:text-primary"
+            >
               <strong>{formatNumber(followingCount)}</strong>{" "}
               <span className="text-muted-foreground">Following</span>
-            </span>
+            </Link>
           </div>
         </div>
       </div>

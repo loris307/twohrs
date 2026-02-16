@@ -34,6 +34,7 @@ export function OgPreview({ title, description, image, url, onRemove }: OgPrevie
           <img
             src={image}
             alt={title || "Preview"}
+            referrerPolicy="no-referrer"
             className="h-16 w-16 flex-shrink-0 rounded object-cover"
           />
         )}

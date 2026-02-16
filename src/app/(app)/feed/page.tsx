@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { PlusSquare } from "lucide-react";
 import { getFeedByTab } from "@/lib/queries/posts";
+import { createClient } from "@/lib/supabase/server";
 import { PostGrid } from "@/components/feed/post-grid";
 import { FeedTabs } from "@/components/feed/feed-tabs";
 import { FeedSkeleton } from "@/components/feed/feed-skeleton";
@@ -42,7 +43,28 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
 }
 
 async function FeedContent({ tab }: { tab: FeedTab }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let isAdmin = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+    isAdmin = profile?.is_admin ?? false;
+  }
+
   const { posts, nextCursor } = await getFeedByTab(tab);
 
-  return <PostGrid initialPosts={posts} initialCursor={nextCursor} tab={tab} />;
+  return (
+    <PostGrid
+      initialPosts={posts}
+      initialCursor={nextCursor}
+      tab={tab}
+      currentUserId={user?.id}
+      isAdmin={isAdmin}
+    />
+  );
 }

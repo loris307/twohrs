@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/archive-leaderboard",
-      "schedule": "55 22 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup",
-      "schedule": "5 23 * * *"
-    }
-  ]
-}
+{}

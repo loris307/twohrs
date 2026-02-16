@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { UserPlus, Share2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/actions/auth";
+import { PasswordRequirements } from "@/components/shared/password-requirements";
 
 const SHARE_TEXT =
   "Ich bin gerade 2Hours beigetreten — ein soziales Netzwerk, das nur 2 Stunden am Tag offen hat. Jeden Abend 20-22 Uhr. Bist du dabei?";
@@ -16,6 +17,7 @@ export default function SignupPage() {
   const [step, setStep] = useState<"form" | "share">("form");
   const [formData, setFormData] = useState<FormData | null>(null);
   const [hasShared, setHasShared] = useState(false);
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
   function isMobile() {
@@ -175,7 +177,7 @@ export default function SignupPage() {
               required
               autoComplete="email"
               placeholder="deine@email.de"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -193,7 +195,7 @@ export default function SignupPage() {
               pattern="^[a-z0-9_]+$"
               minLength={3}
               maxLength={20}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               Nur Kleinbuchstaben, Zahlen und Unterstriche (3-20 Zeichen)
@@ -211,7 +213,7 @@ export default function SignupPage() {
               type="text"
               maxLength={50}
               placeholder="Dein Anzeigename"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -225,10 +227,13 @@ export default function SignupPage() {
               type="password"
               required
               autoComplete="new-password"
-              placeholder="Mindestens 6 Zeichen"
-              minLength={6}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              placeholder="Sicheres Passwort wählen"
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
+            <PasswordRequirements password={password} />
           </div>
 
           <button

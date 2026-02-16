@@ -15,12 +15,30 @@ export const usernameSchema = z
     "Nur Kleinbuchstaben, Zahlen und Unterstriche erlaubt"
   );
 
+export const passwordRules = [
+  { key: "length", label: "Mindestens 8 Zeichen", test: (pw: string) => pw.length >= 8 },
+  { key: "lowercase", label: "Ein Kleinbuchstabe", test: (pw: string) => /[a-z]/.test(pw) },
+  { key: "uppercase", label: "Ein Großbuchstabe", test: (pw: string) => /[A-Z]/.test(pw) },
+  { key: "number", label: "Eine Zahl", test: (pw: string) => /[0-9]/.test(pw) },
+  { key: "special", label: "Ein Sonderzeichen (!@#$...)", test: (pw: string) => /[^a-zA-Z0-9]/.test(pw) },
+] as const;
+
+export function checkPasswordStrength(pw: string) {
+  return passwordRules.map((rule) => ({ ...rule, passed: rule.test(pw) }));
+}
+
+const passwordSchema = z
+  .string()
+  .min(8, "Passwort muss mindestens 8 Zeichen haben")
+  .max(72, "Passwort darf maximal 72 Zeichen haben")
+  .regex(/[a-z]/, "Passwort muss mindestens einen Kleinbuchstaben enthalten")
+  .regex(/[A-Z]/, "Passwort muss mindestens einen Großbuchstaben enthalten")
+  .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten")
+  .regex(/[^a-zA-Z0-9]/, "Passwort muss mindestens ein Sonderzeichen enthalten");
+
 export const signUpSchema = z.object({
   email: z.string().email("Ungültige E-Mail-Adresse"),
-  password: z
-    .string()
-    .min(6, "Passwort muss mindestens 6 Zeichen haben")
-    .max(72, "Passwort darf maximal 72 Zeichen haben"),
+  password: passwordSchema,
   username: usernameSchema,
   displayName: z
     .string()
@@ -29,7 +47,7 @@ export const signUpSchema = z.object({
 });
 
 export const signInSchema = z.object({
-  email: z.string().email("Ungültige E-Mail-Adresse"),
+  identifier: z.string().min(1, "E-Mail oder Benutzername ist erforderlich"),
   password: z.string().min(1, "Passwort ist erforderlich"),
 });
 
@@ -57,6 +75,21 @@ export const updateProfileSchema = z.object({
     .max(160, "Bio darf maximal 160 Zeichen haben")
     .optional(),
 });
+
+export const changeEmailSchema = z.object({
+  email: z.string().email("Ungültige E-Mail-Adresse"),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwörter stimmen nicht überein",
+    path: ["confirmPassword"],
+  });
 
 export function validateImageFile(file: File): string | null {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {

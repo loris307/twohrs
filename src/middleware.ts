@@ -42,7 +42,13 @@ function isAppOpenServer(): boolean {
   const openMinutes = OPEN_HOUR * 60 + OPEN_MINUTE;
   const closeMinutes = CLOSE_HOUR * 60 + CLOSE_MINUTE + GRACE_MINUTES;
 
-  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  if (openMinutes <= closeMinutes) {
+    // Same day (e.g., 20:00–22:00)
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  } else {
+    // Crosses midnight (e.g., 23:00–02:00)
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes;
+  }
 }
 
 export async function middleware(request: NextRequest) {

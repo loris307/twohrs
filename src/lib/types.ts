@@ -7,6 +7,8 @@ export type Profile = {
   total_upvotes_received: number;
   total_posts_created: number;
   days_won: number;
+  is_admin: boolean;
+  moderation_strikes: number;
   created_at: string;
   updated_at: string;
 };
@@ -29,6 +31,7 @@ export type Post = {
 export type PostWithAuthor = Post & {
   profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
   has_voted: boolean;
+  is_followed: boolean;
 };
 
 export type Vote = {
@@ -93,12 +96,30 @@ export type Comment = {
   user_id: string;
   text: string;
   upvote_count: number;
+  parent_comment_id: string | null;
   created_at: string;
 };
 
 export type CommentWithAuthor = Comment & {
   profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
   has_voted: boolean;
+};
+
+export type CommentWithReplies = CommentWithAuthor & {
+  replies: CommentWithAuthor[];
+};
+
+export type TopWinner = {
+  user_id: string;
+  days_won: number;
+  last_win_date: string;
+  profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
+};
+
+export type TopFollowedProfile = {
+  user_id: string;
+  follower_count: number;
+  profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
 };
 
 export type AppConfig = {
@@ -118,6 +139,21 @@ export type TimeState = {
 export type FeedPage = {
   posts: PostWithAuthor[];
   nextCursor: string | null;
+};
+
+export type Mention = {
+  id: string;
+  mentioned_user_id: string;
+  mentioning_user_id: string;
+  post_id: string | null;
+  comment_id: string | null;
+  created_at: string;
+};
+
+export type HashtagSearchResult = {
+  hashtag: string;
+  postCount: number;
+  isFollowed: boolean;
 };
 
 export type ActionResult<T = void> = {

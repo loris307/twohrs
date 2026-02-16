@@ -3,8 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
 import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH } from "@/lib/constants";
+import { extractMentions } from "@/lib/utils/mentions";
+import { extractHashtags } from "@/lib/utils/hashtags";
 import type { ActionResult } from "@/lib/types";
 
 export async function createPost(formData: FormData): Promise<ActionResult> {
@@ -81,19 +84,54 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
   }
 
   // Create post in database
-  const { error: insertError } = await supabase.from("posts").insert({
-    user_id: user.id,
-    image_url: publicUrl,
-    image_path: fileName,
-    caption,
-  });
+  const { data: newPost, error: insertError } = await supabase
+    .from("posts")
+    .insert({
+      user_id: user.id,
+      image_url: publicUrl,
+      image_path: fileName,
+      caption,
+    })
+    .select("id")
+    .single();
 
-  if (insertError) {
+  if (insertError || !newPost) {
     // Cleanup uploaded image on failure
     if (fileName) {
       await supabase.storage.from("memes").remove([fileName]);
     }
     return { success: false, error: "Post erstellen fehlgeschlagen" };
+  }
+
+  // Extract and store @mentions (admin client bypasses RLS)
+  if (caption) {
+    const usernames = extractMentions(caption);
+    if (usernames.length > 0) {
+      const admin = createAdminClient();
+      const { data: mentionedUsers } = await admin
+        .from("profiles")
+        .select("id, username")
+        .in("username", usernames.slice(0, 10));
+
+      if (mentionedUsers && mentionedUsers.length > 0) {
+        const mentionRows = mentionedUsers.map((u) => ({
+          mentioned_user_id: u.id,
+          mentioning_user_id: user.id,
+          post_id: newPost.id,
+        }));
+
+        await admin.from("mentions").insert(mentionRows);
+      }
+    }
+
+    // Extract and store #hashtags
+    const hashtags = extractHashtags(caption);
+    if (hashtags.length > 0) {
+      const adminForTags = createAdminClient();
+      await adminForTags.from("post_hashtags").insert(
+        hashtags.slice(0, 10).map((tag) => ({ post_id: newPost.id, hashtag: tag }))
+      );
+    }
   }
 
   // Increment total_posts_created
@@ -166,23 +204,58 @@ export async function createPostRecord(
     };
   }
 
-  const { error: insertError } = await supabase.from("posts").insert({
-    user_id: user.id,
-    image_url: imageUrl,
-    image_path: imagePath,
-    caption,
-    og_title: ogData?.ogTitle || null,
-    og_description: ogData?.ogDescription || null,
-    og_image: ogData?.ogImage || null,
-    og_url: ogData?.ogUrl || null,
-  });
+  const { data: newPost, error: insertError } = await supabase
+    .from("posts")
+    .insert({
+      user_id: user.id,
+      image_url: imageUrl,
+      image_path: imagePath,
+      caption,
+      og_title: ogData?.ogTitle || null,
+      og_description: ogData?.ogDescription || null,
+      og_image: ogData?.ogImage || null,
+      og_url: ogData?.ogUrl || null,
+    })
+    .select("id")
+    .single();
 
-  if (insertError) {
-    console.error("Post insert failed:", insertError.message);
+  if (insertError || !newPost) {
+    console.error("Post insert failed:", insertError?.message);
     if (imagePath) {
       await supabase.storage.from("memes").remove([imagePath]);
     }
-    return { success: false, error: "Post erstellen fehlgeschlagen: " + insertError.message };
+    return { success: false, error: "Post erstellen fehlgeschlagen: " + (insertError?.message ?? "Unknown error") };
+  }
+
+  // Extract and store @mentions (admin client bypasses RLS)
+  if (caption) {
+    const usernames = extractMentions(caption);
+    if (usernames.length > 0) {
+      const admin = createAdminClient();
+      const { data: mentionedUsers } = await admin
+        .from("profiles")
+        .select("id, username")
+        .in("username", usernames.slice(0, 10));
+
+      if (mentionedUsers && mentionedUsers.length > 0) {
+        const mentionRows = mentionedUsers.map((u) => ({
+          mentioned_user_id: u.id,
+          mentioning_user_id: user.id,
+          post_id: newPost.id,
+        }));
+
+        await admin.from("mentions").insert(mentionRows);
+      }
+    }
+
+    // Extract and store #hashtags
+    const hashtags = extractHashtags(caption);
+    if (hashtags.length > 0) {
+      const adminForTags = createAdminClient();
+      await adminForTags.from("post_hashtags").insert(
+        hashtags.slice(0, 10).map((tag) => ({ post_id: newPost.id, hashtag: tag }))
+      );
+    }
   }
 
   const { data: currentProfile } = await supabase

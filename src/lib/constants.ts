@@ -1,6 +1,6 @@
-export const OPEN_HOUR = 20;
+export const OPEN_HOUR = Number(process.env.NEXT_PUBLIC_OPEN_HOUR ?? 20);
 export const OPEN_MINUTE = 0;
-export const CLOSE_HOUR = 22;
+export const CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CLOSE_HOUR ?? 22);
 export const CLOSE_MINUTE = 0;
 export const GRACE_MINUTES = 5;
 export const TIMEZONE = "Europe/Berlin";
@@ -24,6 +24,7 @@ export const FEED_TABS = ["live", "hot", "following"] as const;
 export type FeedTab = (typeof FEED_TABS)[number];
 export const DEFAULT_FEED_TAB: FeedTab = "live";
 export const HOT_MIN_UPVOTES = 3;
+export const NEW_POSTS_POLL_INTERVAL = 15_000;
 
 export const PUBLIC_ROUTES = [
   "/",
@@ -31,6 +32,7 @@ export const PUBLIC_ROUTES = [
   "/auth/login",
   "/auth/signup",
   "/auth/callback",
+  "/post",
 ];
 
 export const ALWAYS_ACCESSIBLE_ROUTES = [
@@ -40,8 +42,9 @@ export const ALWAYS_ACCESSIBLE_ROUTES = [
   "/auth/signup",
   "/auth/callback",
   "/settings",
+  "/account",
   "/leaderboard/history",
   "/leaderboard/top-posts",
 ];
 
-export const TIME_GATED_ROUTES = ["/feed", "/create", "/leaderboard"];
+export const TIME_GATED_ROUTES = ["/feed", "/create", "/leaderboard", "/search"];

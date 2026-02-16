@@ -37,6 +37,34 @@ export async function getFollowCounts(
   };
 }
 
+export async function getFollowers(
+  userId: string
+): Promise<Pick<Profile, "id" | "username" | "display_name" | "avatar_url">[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("follows")
+    .select("profiles:follower_id(id, username, display_name, avatar_url)")
+    .eq("following_id", userId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((row) => row.profiles as unknown as Pick<Profile, "id" | "username" | "display_name" | "avatar_url">);
+}
+
+export async function getFollowing(
+  userId: string
+): Promise<Pick<Profile, "id" | "username" | "display_name" | "avatar_url">[]> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("follows")
+    .select("profiles:following_id(id, username, display_name, avatar_url)")
+    .eq("follower_id", userId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((row) => row.profiles as unknown as Pick<Profile, "id" | "username" | "display_name" | "avatar_url">);
+}
+
 export async function isFollowing(
   followerId: string,
   followingId: string

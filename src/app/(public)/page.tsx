@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
+import { getLatestTopPost } from "@/lib/queries/leaderboard";
 import { LandingContent } from "./landing-content";
 
 export default async function LandingPage() {
@@ -14,5 +16,10 @@ export default async function LandingPage() {
     redirect("/feed");
   }
 
-  return <LandingContent isLoggedIn={!!user} />;
+  const [yesterdayTopPost, { count: userCount }] = await Promise.all([
+    getLatestTopPost(),
+    createAdminClient().from("profiles").select("*", { count: "exact", head: true }),
+  ]);
+
+  return <LandingContent isLoggedIn={!!user} yesterdayTopPost={yesterdayTopPost} userCount={userCount ?? 0} />;
 }

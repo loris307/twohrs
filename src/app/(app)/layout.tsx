@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUnreadMentionCount } from "@/lib/queries/mentions";
 import { AppShell } from "./app-shell";
 
 export default async function AppLayout({
@@ -16,12 +17,22 @@ export default async function AppLayout({
     redirect("/auth/login");
   }
 
-  // Get the user's profile for the username
+  // Get the user's profile for the username, admin status, and moderation strikes
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username")
+    .select("username, is_admin, moderation_strikes")
     .eq("id", user.id)
     .single();
 
-  return <AppShell username={profile?.username}>{children}</AppShell>;
+  const unreadMentionCount = await getUnreadMentionCount(user.id);
+
+  return (
+    <AppShell
+      username={profile?.username}
+      unreadMentionCount={unreadMentionCount}
+      moderationStrikes={profile?.moderation_strikes ?? 0}
+    >
+      {children}
+    </AppShell>
+  );
 }

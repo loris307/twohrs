@@ -1,24 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Flame, Trash2 } from "lucide-react";
+import { Clock, Flame, Trash2, Trophy, ArrowBigUp, MessageCircle, Users, Settings } from "lucide-react";
 import { CountdownTimer } from "@/components/countdown/countdown-timer";
 import { useTimeGate } from "@/lib/hooks/use-time-gate";
+import { formatNumber } from "@/lib/utils/format";
+import type { TopPostAllTime } from "@/lib/types";
 
-export function LandingContent({ isLoggedIn }: { isLoggedIn?: boolean }) {
+interface LandingContentProps {
+  isLoggedIn?: boolean;
+  yesterdayTopPost?: TopPostAllTime | null;
+  userCount?: number;
+}
+
+export function LandingContent({ isLoggedIn, yesterdayTopPost, userCount = 0 }: LandingContentProps) {
   const { isOpen } = useTimeGate();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-2xl space-y-12 text-center">
         {/* Logo / Title */}
         <div className="space-y-4">
           <h1 className="text-6xl font-extrabold tracking-tighter sm:text-7xl">
-            2<span className="text-primary">Hours</span>
+            two<span className="text-primary">hrs</span>
           </h1>
           <p className="text-xl text-muted-foreground sm:text-2xl">
             Social Media. 2 Stunden. Dann leb dein Leben.
           </p>
+          {userCount > 0 && (
+            <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+              <Users className="h-4 w-4" />
+              <span>{userCount} leute mit dabei</span>
+            </div>
+          )}
         </div>
 
         {/* State-dependent content */}
@@ -64,9 +78,18 @@ export function LandingContent({ isLoggedIn }: { isLoggedIn?: boolean }) {
           <div className="space-y-8">
             <CountdownTimer />
             {isLoggedIn ? (
-              <p className="text-muted-foreground">
-                Du bist eingeloggt. Komm heute Abend um 20:00 Uhr wieder!
-              </p>
+              <div className="space-y-3">
+                <p className="text-muted-foreground">
+                  Du bist eingeloggt. Komm heute Abend um 20:00 Uhr wieder!
+                </p>
+                <Link
+                  href="/account"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-background px-6 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Settings className="h-4 w-4" />
+                  Konto verwalten
+                </Link>
+              </div>
             ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
@@ -83,6 +106,83 @@ export function LandingContent({ isLoggedIn }: { isLoggedIn?: boolean }) {
                 </Link>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Yesterday's Best Post */}
+        {yesterdayTopPost && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground">
+              <Trophy className="h-4 w-4 text-yellow-500" />
+              Bester Post des Abends
+            </div>
+            <article className="mx-auto max-w-md overflow-hidden rounded-lg border border-border bg-card text-left">
+              <div className="flex items-center gap-2 px-4 py-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                  {yesterdayTopPost.profiles.avatar_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={yesterdayTopPost.profiles.avatar_url}
+                      alt={yesterdayTopPost.profiles.username}
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    yesterdayTopPost.profiles.username[0].toUpperCase()
+                  )}
+                </div>
+                <span className="text-sm font-medium">
+                  @{yesterdayTopPost.profiles.username}
+                </span>
+                <span className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-primary">
+                  <ArrowBigUp className="h-4 w-4 fill-primary" />
+                  {formatNumber(yesterdayTopPost.upvote_count)}
+                </span>
+              </div>
+
+              {yesterdayTopPost.image_url && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={yesterdayTopPost.image_url}
+                  alt={yesterdayTopPost.caption || "Top Post"}
+                  className="w-full object-contain"
+                  style={{ maxHeight: "400px" }}
+                />
+              )}
+
+              {yesterdayTopPost.caption && (
+                <div className="px-4 py-2">
+                  <p className="text-sm">
+                    <span className="font-medium">{yesterdayTopPost.profiles.username}</span>{" "}
+                    {yesterdayTopPost.caption}
+                  </p>
+                </div>
+              )}
+
+              {yesterdayTopPost.top_comments && yesterdayTopPost.top_comments.length > 0 && (
+                <div className="border-t border-border px-4 py-2">
+                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Top Kommentare
+                  </div>
+                  <div className="space-y-1">
+                    {yesterdayTopPost.top_comments.map((comment, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-medium">@{comment.username}</span>{" "}
+                          <span className="text-muted-foreground">{comment.text}</span>
+                        </div>
+                        {comment.upvote_count > 0 && (
+                          <span className="flex shrink-0 items-center gap-0.5 text-xs text-primary">
+                            <ArrowBigUp className="h-3.5 w-3.5 fill-primary" />
+                            {formatNumber(comment.upvote_count)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </article>
           </div>
         )}
 

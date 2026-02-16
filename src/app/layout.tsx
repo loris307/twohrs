@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,7 +9,15 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://twohrs.com"),
   title: "2Hours — Social Media. 2 Stunden. Dann leb dein Leben.",
   description:
     "Ein soziales Netzwerk, das nur 2 Stunden am Tag geöffnet hat. Poste Memes, sammle Upvotes, werde lustigste Person des Tages. Um Mitternacht wird alles gelöscht.",
@@ -16,6 +25,18 @@ export const metadata: Metadata = {
     title: "2Hours",
     description: "Social Media. 2 Stunden. Dann leb dein Leben.",
     type: "website",
+    images: [
+      {
+        url: "/image.webp",
+        width: 1200,
+        height: 1200,
+        alt: "2Hours Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/image.webp"],
   },
 };
 
@@ -27,6 +48,7 @@ export default function RootLayout({
   return (
     <html lang="de" className="dark">
       <body className={`${inter.variable} font-sans antialiased`}>
+        <NavigationProgress />
         {children}
         <Toaster
           theme="dark"

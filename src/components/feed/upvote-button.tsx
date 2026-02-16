@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import { ArrowBigUp } from "lucide-react";
 import { toggleVote } from "@/lib/actions/votes";
 import { toast } from "sonner";
@@ -22,11 +22,43 @@ export function UpvoteButton({
   const [count, setCount] = useState(initialCount);
   const [isPending, startTransition] = useTransition();
 
+  const doUpvote = useCallback(() => {
+    if (voted) return; // Already upvoted — don't toggle off
+    setVoted(true);
+    setCount((prev) => prev + 1);
+
+    startTransition(async () => {
+      const result = await toggleVote(postId);
+      if (!result.success) {
+        setVoted(false);
+        setCount((prev) => prev - 1);
+        toast.error(result.error);
+      }
+    });
+  }, [voted, postId]);
+
+  // Listen for double-tap events from PostCardLink
+  useEffect(() => {
+    function handleDoubleTap(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail === postId) {
+        doUpvote();
+      }
+    }
+    document.addEventListener("post-double-tap", handleDoubleTap);
+    return () => document.removeEventListener("post-double-tap", handleDoubleTap);
+  }, [postId, doUpvote]);
+
   function handleClick() {
     // Optimistic update
     const newVoted = !voted;
     setVoted(newVoted);
     setCount((prev) => prev + (newVoted ? 1 : -1));
+
+    // Trigger animation overlay when upvoting
+    if (newVoted) {
+      document.dispatchEvent(new CustomEvent("post-upvote-animation", { detail: postId }));
+    }
 
     startTransition(async () => {
       const result = await toggleVote(postId);
@@ -42,7 +74,6 @@ export function UpvoteButton({
   return (
     <button
       onClick={handleClick}
-      disabled={isPending}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
         voted

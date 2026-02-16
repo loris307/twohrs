@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, getFollowCounts, isFollowing } from "@/lib/queries/profile";
 import { getPostsByUser } from "@/lib/queries/posts";
+import { getUnreadMentionCount } from "@/lib/queries/mentions";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileStats } from "@/components/profile/profile-stats";
-import { PostCard } from "@/components/feed/post-card";
+import { ProfileTabs } from "@/components/profile/profile-tabs";
 
 export default async function ProfilePage({
   params,
@@ -25,12 +26,23 @@ export default async function ProfilePage({
 
   const isOwnProfile = user?.id === profile.id;
 
-  const [followCounts, following, posts] = await Promise.all([
+  let isAdmin = false;
+  if (user) {
+    const { data: currentUserProfile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+    isAdmin = currentUserProfile?.is_admin ?? false;
+  }
+
+  const [followCounts, following, posts, unreadMentionCount] = await Promise.all([
     getFollowCounts(profile.id),
     user && !isOwnProfile
       ? isFollowing(user.id, profile.id)
       : Promise.resolve(false),
     getPostsByUser(profile.id),
+    isOwnProfile && user ? getUnreadMentionCount(user.id) : Promise.resolve(0),
   ]);
 
   return (
@@ -45,16 +57,14 @@ export default async function ProfilePage({
 
       <ProfileStats profile={profile} />
 
-      {posts.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Heutige Posts</h2>
-          <div className="space-y-6">
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-        </div>
-      )}
+      <ProfileTabs
+        isOwnProfile={isOwnProfile}
+        userId={profile.id}
+        posts={posts}
+        currentUserId={user?.id}
+        isAdmin={isAdmin}
+        hasUnreadMentions={unreadMentionCount > 0}
+      />
     </div>
   );
 }

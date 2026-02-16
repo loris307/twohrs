@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowBigUp, Trash2 } from "lucide-react";
 import { toggleCommentVote, deleteComment } from "@/lib/actions/comments";
 import { formatRelativeTime, formatNumber } from "@/lib/utils/format";
+import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "sonner";
 import type { CommentWithAuthor } from "@/lib/types";
@@ -14,14 +15,28 @@ interface CommentCardProps {
   comment: CommentWithAuthor;
   currentUserId?: string;
   onDeleted: () => void;
+  onReply?: (commentId: string, username: string) => void;
+  isReply?: boolean;
+  isReplyTarget?: boolean;
+  isAdmin?: boolean;
 }
 
-export function CommentCard({ comment, currentUserId, onDeleted }: CommentCardProps) {
+export function CommentCard({
+  comment,
+  currentUserId,
+  onDeleted,
+  onReply,
+  isReply,
+  isReplyTarget,
+  isAdmin,
+}: CommentCardProps) {
   const profile = comment.profiles;
   const [voted, setVoted] = useState(comment.has_voted);
   const [count, setCount] = useState(comment.upvote_count);
   const [isPending, startTransition] = useTransition();
   const isOwn = currentUserId === comment.user_id;
+
+  const avatarSize = isReply ? 20 : 24;
 
   function handleVote() {
     const newVoted = !voted;
@@ -50,20 +65,35 @@ export function CommentCard({ comment, currentUserId, onDeleted }: CommentCardPr
   }
 
   return (
-    <div className="flex gap-2 py-2">
+    <div
+      className={cn(
+        "flex gap-2 py-2",
+        isReplyTarget && "rounded-md bg-primary/5"
+      )}
+    >
       {/* Avatar */}
       <Link
         href={`/profile/${profile.username}`}
         className="shrink-0"
       >
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full bg-muted font-medium",
+            isReply
+              ? "h-5 w-5 text-[8px]"
+              : "h-6 w-6 text-[10px]"
+          )}
+        >
           {profile.avatar_url ? (
             <Image
               src={profile.avatar_url}
               alt={profile.username}
-              width={24}
-              height={24}
-              className="h-6 w-6 rounded-full object-cover"
+              width={avatarSize}
+              height={avatarSize}
+              className={cn(
+                "rounded-full object-cover",
+                isReply ? "h-5 w-5" : "h-6 w-6"
+              )}
             />
           ) : (
             profile.username[0].toUpperCase()
@@ -73,14 +103,14 @@ export function CommentCard({ comment, currentUserId, onDeleted }: CommentCardPr
 
       {/* Content */}
       <div className="min-w-0 flex-1">
-        <p className="break-words text-sm">
+        <p className={cn("break-words", isReply ? "text-xs" : "text-sm")}>
           <Link
             href={`/profile/${profile.username}`}
-            className="font-medium hover:underline"
+            className="font-medium text-primary hover:underline"
           >
             {profile.username}
           </Link>{" "}
-          {comment.text}
+          {renderTextWithMentions(comment.text)}
         </p>
         <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
           <span>{formatRelativeTime(comment.created_at)}</span>
@@ -89,7 +119,15 @@ export function CommentCard({ comment, currentUserId, onDeleted }: CommentCardPr
               {formatNumber(count)} {count === 1 ? "Like" : "Likes"}
             </span>
           )}
-          {isOwn && (
+          {onReply && (
+            <button
+              onClick={() => onReply(comment.id, profile.username)}
+              className="font-medium hover:text-foreground"
+            >
+              Antworten
+            </button>
+          )}
+          {(isOwn || isAdmin) && (
             <button
               onClick={handleDelete}
               disabled={isPending}

@@ -38,3 +38,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# dns zone files
+*.com.txt
+
+# claude code local settings
+.claude/settings.local.json
+
+# supabase temp
+supabase/.temp/

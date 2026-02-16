@@ -2,22 +2,31 @@ import Link from "next/link";
 import Image from "next/image";
 import { UpvoteButton } from "./upvote-button";
 import { ShareButton } from "./share-button";
-import { CommentSection } from "./comment-section";
+import { PostActions } from "./post-actions";
 import { LinkPreview } from "./link-preview";
+import { PostCardLink } from "./post-card-link";
+import { PostFollowButton } from "./post-follow-button";
+import { AdminDeleteButton } from "./admin-delete-button";
 import { formatRelativeTime } from "@/lib/utils/format";
+import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import type { PostWithAuthor } from "@/lib/types";
 
 interface PostCardProps {
   post: PostWithAuthor;
+  currentUserId?: string;
+  hideCommentSection?: boolean;
+  isAdmin?: boolean;
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: PostCardProps) {
   const profile = post.profiles;
+  const isOwn = currentUserId === post.user_id;
+  const showFollow = !!currentUserId && !isOwn && !post.is_followed;
   const isGif = post.image_url?.toLowerCase().includes(".gif") ?? false;
   const hasOgData = post.og_url && (post.og_title || post.og_description || post.og_image);
 
-  return (
-    <article className="overflow-hidden rounded-lg border border-border bg-card">
+  const cardContent = (
+    <>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <Link
@@ -46,21 +55,25 @@ export function PostCard({ post }: PostCardProps) {
             </p>
           </div>
         </Link>
+        {showFollow && <PostFollowButton userId={post.user_id} />}
+        {isAdmin && !isOwn && <AdminDeleteButton postId={post.id} />}
         <span className="ml-auto text-xs text-muted-foreground">
           {formatRelativeTime(post.created_at)}
         </span>
       </div>
 
-      {/* Caption — always above image */}
+      {/* Caption */}
       {post.caption && (
         <div className="px-4 pb-3">
-          <p className="text-sm whitespace-pre-wrap">{post.caption}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">
+            {renderTextWithMentions(post.caption)}
+          </p>
         </div>
       )}
 
-      {/* Image */}
+      {/* Image / OG preview */}
       {post.image_url && (
-        <div className="relative w-full">
+        <div className="relative w-full overflow-hidden">
           <Image
             src={post.image_url}
             alt={post.caption || "Meme"}
@@ -73,7 +86,6 @@ export function PostCard({ post }: PostCardProps) {
         </div>
       )}
 
-      {/* OG Link Preview */}
       {hasOgData && (
         <LinkPreview
           title={post.og_title}
@@ -84,22 +96,43 @@ export function PostCard({ post }: PostCardProps) {
       )}
 
       {/* Actions */}
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
+      {hideCommentSection ? (
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
             <UpvoteButton
               postId={post.id}
               initialCount={post.upvote_count}
               initialVoted={post.has_voted}
             />
-            <CommentSection
-              postId={post.id}
-              initialCount={post.comment_count}
-            />
+            <ShareButton postId={post.id} caption={post.caption} />
           </div>
-          <ShareButton caption={post.caption} />
         </div>
-      </div>
-    </article>
+      ) : (
+        <PostActions
+          postId={post.id}
+          initialUpvoteCount={post.upvote_count}
+          initialVoted={post.has_voted}
+          initialCommentCount={post.comment_count}
+          caption={post.caption}
+          isAdmin={isAdmin}
+        />
+      )}
+    </>
+  );
+
+  // On the post detail page, render a plain article (no click-to-navigate)
+  if (hideCommentSection) {
+    return (
+      <article className="rounded-lg border border-border bg-card">
+        {cardContent}
+      </article>
+    );
+  }
+
+  // In the feed, the entire card is clickable → navigates to /post/[id]
+  return (
+    <PostCardLink postId={post.id}>
+      {cardContent}
+    </PostCardLink>
   );
 }

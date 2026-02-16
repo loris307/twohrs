@@ -2,13 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
 import { createCommentSchema } from "@/lib/validations";
+import { extractMentions } from "@/lib/utils/mentions";
 import type { ActionResult } from "@/lib/types";
 
 export async function createComment(
   postId: string,
-  text: string
+  text: string,
+  parentCommentId?: string
 ): Promise<ActionResult<{ id: string }>> {
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
@@ -29,12 +32,32 @@ export async function createComment(
     return { success: false, error: parsed.error.errors[0].message };
   }
 
+  // Validate parent comment if replying
+  if (parentCommentId) {
+    const { data: parent } = await supabase
+      .from("comments")
+      .select("id, post_id, parent_comment_id")
+      .eq("id", parentCommentId)
+      .single();
+
+    if (!parent) {
+      return { success: false, error: "Elternkommentar nicht gefunden" };
+    }
+    if (parent.post_id !== postId) {
+      return { success: false, error: "Kommentar gehört nicht zu diesem Post" };
+    }
+    if (parent.parent_comment_id !== null) {
+      return { success: false, error: "Antworten auf Antworten nicht möglich" };
+    }
+  }
+
   const { data, error } = await supabase
     .from("comments")
     .insert({
       post_id: postId,
       user_id: user.id,
       text: parsed.data.text,
+      parent_comment_id: parentCommentId ?? null,
     })
     .select("id")
     .single();
@@ -42,6 +65,30 @@ export async function createComment(
   if (error) {
     console.error("Comment insert failed:", error.message, error.code);
     return { success: false, error: "Kommentar erstellen fehlgeschlagen" };
+  }
+
+  // Extract and store @mentions (admin client bypasses RLS)
+  const usernames = extractMentions(parsed.data.text);
+  console.log("[mentions] extracted from comment:", usernames, "text:", parsed.data.text);
+  if (usernames.length > 0) {
+    const admin = createAdminClient();
+    const { data: mentionedUsers } = await admin
+      .from("profiles")
+      .select("id, username")
+      .in("username", usernames.slice(0, 10));
+
+    console.log("[mentions] found users:", mentionedUsers?.map(u => u.username));
+    if (mentionedUsers && mentionedUsers.length > 0) {
+      const mentionRows = mentionedUsers.map((u) => ({
+        mentioned_user_id: u.id,
+        mentioning_user_id: user.id,
+        post_id: postId,
+        comment_id: data.id,
+      }));
+
+      const { error: mentionError } = await admin.from("mentions").insert(mentionRows);
+      console.log("[mentions] insert result:", mentionError ? mentionError.message : "success");
+    }
   }
 
   revalidatePath("/feed");
@@ -61,7 +108,18 @@ export async function deleteComment(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  const { data: comment } = await supabase
+  // Check admin status
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.is_admin ?? false;
+
+  // Use admin client to fetch comment (bypasses RLS/time-gate)
+  const { data: comment } = await admin
     .from("comments")
     .select("user_id")
     .eq("id", commentId)
@@ -71,11 +129,13 @@ export async function deleteComment(
     return { success: false, error: "Kommentar nicht gefunden" };
   }
 
-  if (comment.user_id !== user.id) {
+  if (comment.user_id !== user.id && !isAdmin) {
     return { success: false, error: "Nicht berechtigt" };
   }
 
-  const { error } = await supabase
+  // Admin uses admin client, owner uses regular client
+  const client = isAdmin ? admin : supabase;
+  const { error } = await client
     .from("comments")
     .delete()
     .eq("id", commentId);
