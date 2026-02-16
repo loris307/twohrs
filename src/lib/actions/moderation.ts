@@ -74,55 +74,9 @@ export async function adminDeletePost(
     return { success: false, error: "Löschen fehlgeschlagen" };
   }
 
-  // Increment moderation strikes
-  const newStrikes = (authorProfile.moderation_strikes ?? 0) + 1;
-
-  await adminClient
-    .from("profiles")
-    .update({ moderation_strikes: newStrikes })
-    .eq("id", post.user_id);
-
-  // Strike 3: ban email hash + delete entire account
-  let accountDeleted = false;
-  if (newStrikes >= 3) {
-    // Get the user's email before deleting and store its hash
-    const { data: authUser } = await adminClient.auth.admin.getUserById(post.user_id);
-    if (authUser?.user?.email) {
-      const { createHash } = await import("crypto");
-      const emailHash = createHash("sha256")
-        .update(authUser.user.email.toLowerCase().trim())
-        .digest("hex");
-      await adminClient
-        .from("banned_email_hashes")
-        .upsert({ hash: emailHash });
-    }
-
-    // Delete avatar files
-    const { data: avatarFiles } = await adminClient.storage
-      .from("avatars")
-      .list(post.user_id);
-
-    if (avatarFiles && avatarFiles.length > 0) {
-      await adminClient.storage
-        .from("avatars")
-        .remove(avatarFiles.map((f) => `${post.user_id}/${f.name}`));
-    }
-
-    // Delete meme files
-    const { data: memeFiles } = await adminClient.storage
-      .from("memes")
-      .list(post.user_id);
-
-    if (memeFiles && memeFiles.length > 0) {
-      await adminClient.storage
-        .from("memes")
-        .remove(memeFiles.map((f) => `${post.user_id}/${f.name}`));
-    }
-
-    // Delete auth user (cascades to profiles → everything)
-    await adminClient.auth.admin.deleteUser(post.user_id);
-    accountDeleted = true;
-  }
+  // Increment moderation strikes (shared logic with auto-moderation)
+  const { addModerationStrike } = await import("@/lib/moderation/strikes");
+  const { newStrikes, accountDeleted } = await addModerationStrike(post.user_id);
 
   revalidatePath("/feed");
 

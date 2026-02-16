@@ -93,7 +93,9 @@ export default async function PostPage({ params }: PostPageProps) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
         <div className="mb-6">
-          <span className="text-4xl font-bold">twohrs</span>
+          <span className="text-4xl font-extrabold tracking-tighter">
+            two<span className="text-primary">hrs</span>
+          </span>
         </div>
         {post ? (
           <>

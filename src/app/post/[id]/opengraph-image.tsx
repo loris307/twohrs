@@ -121,9 +121,14 @@ export default async function OgImage({
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <span
-                  style={{ color: "#fafafa", fontSize: 28, fontWeight: 700 }}
+                  style={{ color: "#fafafa", fontSize: 28, fontWeight: 800 }}
                 >
-                  twohrs
+                  two
+                </span>
+                <span
+                  style={{ color: "#f97316", fontSize: 28, fontWeight: 800 }}
+                >
+                  hrs
                 </span>
               </div>
             </div>
@@ -205,8 +210,11 @@ export default async function OgImage({
             justifyContent: "center",
           }}
         >
-          <span style={{ color: "#fafafa", fontSize: 64, fontWeight: 700 }}>
-            twohrs
+          <span style={{ color: "#fafafa", fontSize: 64, fontWeight: 800 }}>
+            two
+          </span>
+          <span style={{ color: "#f97316", fontSize: 64, fontWeight: 800 }}>
+            hrs
           </span>
         </div>
       ),

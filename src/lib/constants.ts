@@ -48,3 +48,12 @@ export const ALWAYS_ACCESSIBLE_ROUTES = [
 ];
 
 export const TIME_GATED_ROUTES = ["/feed", "/create", "/leaderboard", "/search"];
+
+// NSFW detection thresholds (probability 0-1) — only block actual porn, not bikini etc.
+export const NSFW_THRESHOLDS: Record<string, number> = {
+  Porn: 0.5,
+  Hentai: 0.5,
+};
+
+// Auto-moderation: separate counter from admin strikes (3)
+export const NSFW_STRIKE_BAN_THRESHOLD = 100;

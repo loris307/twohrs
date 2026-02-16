@@ -61,6 +61,20 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     };
   }
 
+  // Check caption for blocked domains before upload
+  if (caption) {
+    const { findBlockedDomainInText } = await import("@/lib/moderation/blocked-domains");
+    const blockedDomain = findBlockedDomainInText(caption);
+    if (blockedDomain) {
+      const { addModerationStrike } = await import("@/lib/moderation/strikes");
+      const { accountDeleted } = await addModerationStrike(user.id);
+      if (accountDeleted) {
+        return { success: false, error: "Dein Account wurde gesperrt." };
+      }
+      return { success: false, error: "Dieser Link ist nicht erlaubt." };
+    }
+  }
+
   let publicUrl: string | null = null;
   let fileName: string | null = null;
 
@@ -81,6 +95,33 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     }
 
     publicUrl = supabase.storage.from("memes").getPublicUrl(fileName).data.publicUrl;
+  }
+
+  // NSFW image check (after upload, before DB insert)
+  if (publicUrl) {
+    try {
+      const { classifyImage } = await import("@/lib/moderation/nsfw");
+      const response = await fetch(publicUrl);
+      if (response.ok) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const result = await classifyImage(buffer);
+        if (result.isNsfw) {
+          // Delete uploaded image
+          if (fileName) {
+            await supabase.storage.from("memes").remove([fileName]);
+          }
+          const { addModerationStrike } = await import("@/lib/moderation/strikes");
+          const { accountDeleted } = await addModerationStrike(user.id, { column: "nsfw_strikes" });
+          if (accountDeleted) {
+            return { success: false, error: "Dein Account wurde gesperrt." };
+          }
+          return { success: false, error: "Dieses Bild verstößt gegen unsere Richtlinien." };
+        }
+      }
+    } catch {
+      // Fail-open: if NSFW check fails, allow the post
+      console.error("NSFW check failed in createPost, allowing as fallback");
+    }
   }
 
   // Create post in database
@@ -201,6 +242,36 @@ export async function createPostRecord(
     return {
       success: false,
       error: `Caption darf maximal ${MAX_CAPTION_LENGTH} Zeichen haben`,
+    };
+  }
+
+  // Content moderation checks (domain blacklist + NSFW image)
+  const { checkPostContent } = await import("@/lib/moderation/check-content");
+  const contentCheck = await checkPostContent(imageUrl, caption);
+
+  if (!contentCheck.allowed) {
+    // Delete the already-uploaded image from storage
+    if (imagePath) {
+      const adminClient = createAdminClient();
+      await adminClient.storage.from("memes").remove([imagePath]);
+    }
+
+    // Add strike: domain violations use admin strikes (3), NSFW uses separate counter (100)
+    const { addModerationStrike } = await import("@/lib/moderation/strikes");
+    const strikeOptions = contentCheck.type === "nsfw_image"
+      ? { column: "nsfw_strikes" as const }
+      : undefined;
+    const { accountDeleted } = await addModerationStrike(user.id, strikeOptions);
+
+    if (accountDeleted) {
+      return { success: false, error: "Dein Account wurde gesperrt." };
+    }
+
+    return {
+      success: false,
+      error: contentCheck.type === "blocked_domain"
+        ? "Dieser Link ist nicht erlaubt."
+        : "Dieses Bild verstößt gegen unsere Richtlinien.",
     };
   }
 

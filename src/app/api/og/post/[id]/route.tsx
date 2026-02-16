@@ -109,8 +109,11 @@ export async function GET(
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <span style={{ color: "#fafafa", fontSize: 28, fontWeight: 700 }}>
-                  twohrs
+                <span style={{ color: "#fafafa", fontSize: 28, fontWeight: 800 }}>
+                  two
+                </span>
+                <span style={{ color: "#f97316", fontSize: 28, fontWeight: 800 }}>
+                  hrs
                 </span>
               </div>
             </div>

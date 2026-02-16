@@ -50,6 +50,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Only HTTP(S) URLs allowed" }, { status: 400 });
   }
 
+  // Block adult domains
+  const { isDomainBlocked } = await import("@/lib/moderation/blocked-domains");
+  if (isDomainBlocked(parsedUrl.hostname)) {
+    return NextResponse.json({ error: "Domain blocked" }, { status: 403 });
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);

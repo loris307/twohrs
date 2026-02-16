@@ -9,29 +9,32 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^15.3.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "@supabase/supabase-js": "^2.49.4",
     "@supabase/ssr": "^0.6.1",
-    "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0",
-    "zod": "^3.24.4",
+    "@supabase/supabase-js": "^2.49.4",
+    "@tensorflow/tfjs": "^4.22.0",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^3.3.0",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "lucide-react": "^0.511.0",
-    "sonner": "^2.0.3"
+    "next": "^15.3.3",
+    "nsfwjs": "^4.2.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "sharp": "^0.34.5",
+    "sonner": "^2.0.3",
+    "tailwind-merge": "^3.3.0",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
+    "@eslint/eslintrc": "^3.3.1",
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/node": "^22.15.18",
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
-    "@types/node": "^22.15.18",
-    "@tailwindcss/postcss": "^4.1.7",
-    "tailwindcss": "^4.1.7",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
-    "@eslint/eslintrc": "^3.3.1"
+    "tailwindcss": "^4.1.7",
+    "typescript": "^5.8.3"
   }
 }
