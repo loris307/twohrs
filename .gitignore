@@ -50,3 +50,6 @@ ENTWICKLUNG.md
 
 # supabase temp
 supabase/.temp/
+
+# security audit plans (private)
+/plans/
