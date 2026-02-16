@@ -447,6 +447,23 @@ git push                                      # push to GitHub
 vercel --yes --prod                           # deploy to production (separate step!)
 ```
 
+### Commit Style
+
+Use **Conventional Commits** for all commit messages:
+
+```
+<type>: <short description>
+```
+
+Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`
+
+Examples:
+- `feat: add hashtag follow button`
+- `fix: prevent duplicate votes on rapid clicks`
+- `docs: add project README`
+- `chore: update dependencies`
+- `refactor: extract time utils into separate module`
+
 ## Deployment
 
 ### Two Environments on Vercel
