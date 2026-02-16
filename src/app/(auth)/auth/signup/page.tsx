@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { UserPlus, Share2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/actions/auth";
@@ -18,6 +19,8 @@ export default function SignupPage() {
   const [formData, setFormData] = useState<FormData | null>(null);
   const [hasShared, setHasShared] = useState(false);
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
   const router = useRouter();
 
   function isMobile() {
@@ -27,6 +30,13 @@ export default function SignupPage() {
   async function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
+
+    if (!captchaToken) {
+      toast.error("Bitte warte, bis die Sicherheitsprüfung geladen ist");
+      return;
+    }
+
+    data.set("captchaToken", captchaToken);
 
     if (isMobile()) {
       // Mobile: show share step first
@@ -40,12 +50,16 @@ export default function SignupPage() {
         const result = await signUp(data);
         if (!result.success) {
           toast.error(result.error);
+          turnstileRef.current?.reset();
+          setCaptchaToken(null);
         } else {
           toast.success("Willkommen bei twohrs!");
           router.push("/");
         }
       } catch {
         toast.error("Ein Fehler ist aufgetreten");
+        turnstileRef.current?.reset();
+        setCaptchaToken(null);
       } finally {
         setIsLoading(false);
       }
@@ -85,6 +99,8 @@ export default function SignupPage() {
       const result = await signUp(formData);
       if (!result.success) {
         toast.error(result.error);
+        turnstileRef.current?.reset();
+        setCaptchaToken(null);
         setStep("form");
       } else {
         toast.success("Willkommen bei twohrs!");
@@ -92,6 +108,8 @@ export default function SignupPage() {
       }
     } catch {
       toast.error("Ein Fehler ist aufgetreten");
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
       setStep("form");
     } finally {
       setIsLoading(false);
@@ -236,9 +254,19 @@ export default function SignupPage() {
             <PasswordRequirements password={password} />
           </div>
 
+          {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onSuccess={setCaptchaToken}
+              onExpire={() => setCaptchaToken(null)}
+              options={{ theme: "dark", size: "flexible" }}
+            />
+          )}
+
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (!captchaToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {isLoading ? (

@@ -1,26 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/actions/auth";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsLoading(true);
 
+    if (!captchaToken) {
+      toast.error("Bitte warte, bis die Sicherheitsprüfung geladen ist");
+      return;
+    }
+
+    setIsLoading(true);
     const formData = new FormData(e.currentTarget);
+    formData.set("captchaToken", captchaToken);
 
     try {
       const result = await signIn(formData);
       if (result && !result.success) {
         toast.error(result.error);
+        turnstileRef.current?.reset();
+        setCaptchaToken(null);
       }
     } catch {
       // signIn redirects on success, so if we're here and no error, it worked
@@ -73,9 +84,19 @@ export default function LoginPage() {
             />
           </div>
 
+          {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              onSuccess={setCaptchaToken}
+              onExpire={() => setCaptchaToken(null)}
+              options={{ theme: "dark", size: "flexible" }}
+            />
+          )}
+
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (!captchaToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           >
             {isLoading ? (
