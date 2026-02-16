@@ -30,7 +30,7 @@ export default function AboutPage() {
           </p>
 
           <p>
-            <strong className="text-foreground">2Hours</strong> macht es anders.
+            <strong className="text-foreground">twohrs</strong> macht es anders.
             Die App ist nur 2 Stunden am Tag geöffnet. Von 20:00 bis 22:00 Uhr.
             Danach ist Schluss. Kein Scrollen um 3 Uhr nachts, kein Doom-Scrolling
             in der Mittagspause.

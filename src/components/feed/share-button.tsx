@@ -18,15 +18,15 @@ export function ShareButton({ postId, caption }: ShareButtonProps) {
 
   async function handleShare() {
     const shareText = caption
-      ? `"${caption}" — auf 2Hours`
-      : "Schau dir dieses Meme auf 2Hours an!";
+      ? `"${caption}" — auf twohrs`
+      : "Schau dir dieses Meme auf twohrs an!";
     const shareUrl = `${window.location.origin}/post/${postId}`;
 
     // Mobile: use native share sheet
     if (isMobile() && navigator.share) {
       try {
         await navigator.share({
-          title: "2Hours",
+          title: "twohrs",
           text: shareText,
           url: shareUrl,
         });

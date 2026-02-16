@@ -18,11 +18,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://twohrs.com"),
-  title: "2Hours — Social Media. 2 Stunden. Dann leb dein Leben.",
+  title: "twohrs — Social Media. 2 Stunden. Dann leb dein Leben.",
   description:
     "Ein soziales Netzwerk, das nur 2 Stunden am Tag geöffnet hat. Poste Memes, sammle Upvotes, werde lustigste Person des Tages. Um Mitternacht wird alles gelöscht.",
   openGraph: {
-    title: "2Hours",
+    title: "twohrs",
     description: "Social Media. 2 Stunden. Dann leb dein Leben.",
     type: "website",
     images: [
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
         url: "/image.webp",
         width: 1200,
         height: 1200,
-        alt: "2Hours Logo",
+        alt: "twohrs Logo",
       },
     ],
   },

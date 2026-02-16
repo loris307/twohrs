@@ -27,7 +27,7 @@ export function Navbar({
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-        <Link href="/feed" className="text-xl font-bold tracking-tight">
+        <Link href="/feed" className="text-2xl font-extrabold tracking-tight">
           two<span className="text-primary">hrs</span>
         </Link>
 

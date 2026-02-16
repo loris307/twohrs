@@ -9,8 +9,8 @@ import { signUp } from "@/lib/actions/auth";
 import { PasswordRequirements } from "@/components/shared/password-requirements";
 
 const SHARE_TEXT =
-  "Ich bin gerade 2Hours beigetreten — ein soziales Netzwerk, das nur 2 Stunden am Tag offen hat. Jeden Abend 20-22 Uhr. Bist du dabei?";
-const SHARE_URL = typeof window !== "undefined" ? window.location.origin : "https://2hours.app";
+  "Ich bin gerade twohrs beigetreten — ein soziales Netzwerk, das nur 2 Stunden am Tag offen hat. Jeden Abend 20-22 Uhr. Bist du dabei?";
+const SHARE_URL = typeof window !== "undefined" ? window.location.origin : "https://twohrs.com";
 
 export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +41,7 @@ export default function SignupPage() {
         if (!result.success) {
           toast.error(result.error);
         } else {
-          toast.success("Willkommen bei 2Hours!");
+          toast.success("Willkommen bei twohrs!");
           router.push("/");
         }
       } catch {
@@ -57,7 +57,7 @@ export default function SignupPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "2Hours — Social Media. 2 Stunden.",
+          title: "twohrs — Social Media. 2 Stunden.",
           text: SHARE_TEXT,
           url: SHARE_URL,
         });
@@ -87,7 +87,7 @@ export default function SignupPage() {
         toast.error(result.error);
         setStep("form");
       } else {
-        toast.success("Willkommen bei 2Hours!");
+        toast.success("Willkommen bei twohrs!");
         router.push("/");
       }
     } catch {
@@ -111,7 +111,7 @@ export default function SignupPage() {
               Fast geschafft!
             </h1>
             <p className="text-muted-foreground">
-              2Hours lebt von der Community. Teile die App mit einem Freund,
+              twohrs lebt von der Community. Teile die App mit einem Freund,
               deiner Oma oder wem auch immer — Hauptsache, jemand erfährt davon.
             </p>
           </div>
@@ -161,7 +161,7 @@ export default function SignupPage() {
             Account erstellen
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Werde Teil der 2Hours-Community
+            Werde Teil der twohrs-Community
           </p>
         </div>
 

@@ -2,7 +2,7 @@ import { CreatePostForm } from "@/components/create/create-post-form";
 
 export default function CreatePage() {
   return (
-    <div className="mx-auto max-w-lg">
+    <div>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Neuer Post</h1>

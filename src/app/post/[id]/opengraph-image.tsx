@@ -29,7 +29,7 @@ export default async function OgImage({
       avatar_url: string | null;
     } | null;
     const caption = post?.caption || "Kein Post gefunden";
-    const displayName = profile?.display_name || profile?.username || "2Hours";
+    const displayName = profile?.display_name || profile?.username || "twohrs";
     const truncated =
       caption.length > 120 ? caption.slice(0, 117) + "..." : caption;
     const hasImage = !!post?.image_url;
@@ -121,19 +121,9 @@ export default async function OgImage({
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
                 <span
-                  style={{ color: "#f97316", fontSize: 32, fontWeight: 700 }}
+                  style={{ color: "#fafafa", fontSize: 28, fontWeight: 700 }}
                 >
-                  2
-                </span>
-                <span
-                  style={{
-                    color: "#fafafa",
-                    fontSize: 26,
-                    fontWeight: 600,
-                    marginLeft: 3,
-                  }}
-                >
-                  Hours
+                  twohrs
                 </span>
               </div>
             </div>
@@ -215,18 +205,8 @@ export default async function OgImage({
             justifyContent: "center",
           }}
         >
-          <span style={{ color: "#f97316", fontSize: 72, fontWeight: 700 }}>
-            2
-          </span>
-          <span
-            style={{
-              color: "#fafafa",
-              fontSize: 56,
-              fontWeight: 600,
-              marginLeft: 4,
-            }}
-          >
-            Hours
+          <span style={{ color: "#fafafa", fontSize: 64, fontWeight: 700 }}>
+            twohrs
           </span>
         </div>
       ),

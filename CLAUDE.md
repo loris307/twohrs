@@ -1,4 +1,4 @@
-# 2Hours — Zeitbegrenztes Soziales Netzwerk
+# twohrs — Zeitbegrenztes Soziales Netzwerk
 
 ## Project Overview
 
@@ -44,6 +44,7 @@ No test suite currently. The project has no test framework, test files, or cover
 ## Boundaries
 
 ### Always (do without asking)
+- Use **"twohrs"** as the brand name everywhere (lowercase, one word). Never use "2Hours", "2 Hours", or "2hours".
 - Use `pnpm`, never `npm` or `yarn`
 - Check `isAppOpen()` in every new server action before writes
 - Check auth (`supabase.auth.getUser()`) in every new server action

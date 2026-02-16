@@ -23,7 +23,7 @@ export async function GET(
 
     const profile = post?.profiles as unknown as { username: string; display_name: string | null; avatar_url: string | null } | null;
     const caption = post?.caption || "Kein Post gefunden";
-    const displayName = profile?.display_name || profile?.username || "2Hours";
+    const displayName = profile?.display_name || profile?.username || "twohrs";
     const truncated = caption.length > 120 ? caption.slice(0, 117) + "..." : caption;
     const hasImage = !!post?.image_url;
 
@@ -109,9 +109,8 @@ export async function GET(
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <span style={{ color: "#f97316", fontSize: 32, fontWeight: 700 }}>2</span>
-                <span style={{ color: "#fafafa", fontSize: 26, fontWeight: 600, marginLeft: 3 }}>
-                  Hours
+                <span style={{ color: "#fafafa", fontSize: 28, fontWeight: 700 }}>
+                  twohrs
                 </span>
               </div>
             </div>

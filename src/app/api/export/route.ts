@@ -73,7 +73,7 @@ export async function GET() {
   return new NextResponse(JSON.stringify(exportData, null, 2), {
     headers: {
       "Content-Type": "application/json",
-      "Content-Disposition": 'attachment; filename="2hours-daten-export.json"',
+      "Content-Disposition": 'attachment; filename="twohrs-daten-export.json"',
     },
   });
 }

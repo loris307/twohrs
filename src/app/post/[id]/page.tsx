@@ -30,13 +30,13 @@ export async function generateMetadata({
     .single();
 
   if (!post) {
-    return { title: "Post nicht gefunden — 2Hours" };
+    return { title: "Post nicht gefunden — twohrs" };
   }
 
   const title = post.caption
-    ? `${post.caption.slice(0, 60)} — 2Hours`
-    : "Post — 2Hours";
-  const description = post.caption || "Ein Post auf 2Hours";
+    ? `${post.caption.slice(0, 60)} — twohrs`
+    : "Post — twohrs";
+  const description = post.caption || "Ein Post auf twohrs";
 
   const headersList = await headers();
   const host = headersList.get("x-forwarded-host") || headersList.get("host") || "twohrs.com";
@@ -92,9 +92,8 @@ export default async function PostPage({ params }: PostPageProps) {
 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
-        <div className="mb-6 flex items-baseline gap-1">
-          <span className="text-4xl font-bold text-primary">2</span>
-          <span className="text-3xl font-semibold">Hours</span>
+        <div className="mb-6">
+          <span className="text-4xl font-bold">twohrs</span>
         </div>
         <p className="text-lg font-medium">
           {profile.display_name || profile.username}
@@ -104,12 +103,12 @@ export default async function PostPage({ params }: PostPageProps) {
             ? post.caption.length > 150
               ? post.caption.slice(0, 147) + "..."
               : post.caption
-            : "Ein Post auf 2Hours"}
+            : "Ein Post auf twohrs"}
         </p>
         <p className="mt-6 text-sm text-muted-foreground">
           {!user
             ? "Melde dich an, um diesen Post zu sehen."
-            : "2Hours ist gerade geschlossen. Komm heute Nacht wieder!"}
+            : "twohrs ist gerade geschlossen. Komm heute Nacht wieder!"}
         </p>
         <Link
           href={!user ? "/auth/login" : "/"}
