@@ -30,18 +30,14 @@ export const NEW_POSTS_POLL_INTERVAL = 15_000;
 export const PUBLIC_ROUTES = [
   "/",
   "/about",
-  "/auth/login",
-  "/auth/signup",
-  "/auth/callback",
+  "/auth",
   "/post",
 ];
 
 export const ALWAYS_ACCESSIBLE_ROUTES = [
   "/",
   "/about",
-  "/auth/login",
-  "/auth/signup",
-  "/auth/callback",
+  "/auth",
   "/settings",
   "/account",
   "/leaderboard/history",
