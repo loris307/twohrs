@@ -52,22 +52,24 @@ export async function createComment(
   }
 
   // Validate parent comment if replying
+  let parent: { id: string; post_id: string; parent_comment_id: string | null; user_id: string } | null = null;
   if (parentCommentId) {
-    const { data: parent } = await supabase
+    const { data } = await supabase
       .from("comments")
       .select("id, post_id, parent_comment_id, user_id")
       .eq("id", parentCommentId)
       .single();
 
-    if (!parent) {
+    if (!data) {
       return { success: false, error: "Elternkommentar nicht gefunden" };
     }
-    if (parent.post_id !== postId) {
+    if (data.post_id !== postId) {
       return { success: false, error: "Kommentar gehört nicht zu diesem Post" };
     }
-    if (parent.parent_comment_id !== null) {
+    if (data.parent_comment_id !== null) {
       return { success: false, error: "Antworten auf Antworten nicht möglich" };
     }
+    parent = data;
   }
 
   const { data, error } = await supabase
@@ -88,7 +90,7 @@ export async function createComment(
 
   // Extract and store @mentions (admin client bypasses RLS)
   const usernames = extractMentions(parsed.data.text);
-  console.log("[mentions] extracted from comment:", usernames, "text:", parsed.data.text);
+  let mentionedUserIds: string[] = [];
   if (usernames.length > 0) {
     const admin = createAdminClient();
     const { data: mentionedUsers } = await admin
@@ -96,8 +98,8 @@ export async function createComment(
       .select("id, username")
       .in("username", usernames.slice(0, 10));
 
-    console.log("[mentions] found users:", mentionedUsers?.map(u => u.username));
     if (mentionedUsers && mentionedUsers.length > 0) {
+      mentionedUserIds = mentionedUsers.map((u) => u.id);
       const mentionRows = mentionedUsers.map((u) => ({
         mentioned_user_id: u.id,
         mentioning_user_id: user.id,
@@ -105,8 +107,21 @@ export async function createComment(
         comment_id: data.id,
       }));
 
-      const { error: mentionError } = await admin.from("mentions").insert(mentionRows);
-      console.log("[mentions] insert result:", mentionError ? mentionError.message : "success");
+      await admin.from("mentions").insert(mentionRows);
+    }
+  }
+
+  // Auto-mention parent comment author on reply
+  if (parentCommentId && parent) {
+    const parentAuthorId = parent.user_id;
+    if (parentAuthorId !== user.id && !mentionedUserIds.includes(parentAuthorId)) {
+      const admin = createAdminClient();
+      await admin.from("mentions").insert({
+        mentioned_user_id: parentAuthorId,
+        mentioning_user_id: user.id,
+        post_id: postId,
+        comment_id: data.id,
+      });
     }
   }
 
