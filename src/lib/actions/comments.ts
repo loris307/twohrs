@@ -55,7 +55,7 @@ export async function createComment(
   if (parentCommentId) {
     const { data: parent } = await supabase
       .from("comments")
-      .select("id, post_id, parent_comment_id")
+      .select("id, post_id, parent_comment_id, user_id")
       .eq("id", parentCommentId)
       .single();
 
