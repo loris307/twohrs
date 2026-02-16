@@ -7,6 +7,7 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { signIn } from "@/lib/actions/auth";
+import { PasswordInput } from "@/components/shared/password-input";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -73,14 +74,12 @@ export default function LoginPage() {
             <label htmlFor="password" className="text-sm font-medium">
               Passwort
             </label>
-            <input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               required
               autoComplete="current-password"
               placeholder="Dein Passwort"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 

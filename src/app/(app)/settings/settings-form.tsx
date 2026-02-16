@@ -23,6 +23,7 @@ import {
 } from "@/lib/actions/profile";
 import { signOut } from "@/lib/actions/auth";
 import { PasswordRequirements } from "@/components/shared/password-requirements";
+import { PasswordInput } from "@/components/shared/password-input";
 
 interface SettingsFormProps {
   initialDisplayName: string;
@@ -330,35 +331,29 @@ export function SettingsForm({
 
           {showPasswordChange && (
             <form onSubmit={handlePasswordChange} className="space-y-3">
-              <input
+              <PasswordInput
                 name="currentPassword"
-                type="password"
                 placeholder="Aktuelles Passwort"
                 required
-                className={inputClasses}
               />
               <div className="space-y-1">
-                <input
+                <PasswordInput
                   name="newPassword"
-                  type="password"
                   placeholder="Neues Passwort"
                   minLength={8}
                   maxLength={72}
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={inputClasses}
                 />
                 <PasswordRequirements password={newPassword} />
               </div>
-              <input
+              <PasswordInput
                 name="confirmPassword"
-                type="password"
                 placeholder="Neues Passwort bestätigen"
                 minLength={8}
                 maxLength={72}
                 required
-                className={inputClasses}
               />
               <button
                 type="submit"

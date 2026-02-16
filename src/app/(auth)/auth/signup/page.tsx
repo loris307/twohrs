@@ -8,6 +8,7 @@ import { UserPlus, Share2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { signUp } from "@/lib/actions/auth";
 import { PasswordRequirements } from "@/components/shared/password-requirements";
+import { PasswordInput } from "@/components/shared/password-input";
 
 const SHARE_TEXT =
   "Ich bin gerade twohrs beigetreten — ein soziales Netzwerk, das nur 2 Stunden am Tag offen hat. Jeden Abend 20-22 Uhr. Bist du dabei?";
@@ -239,17 +240,15 @@ export default function SignupPage() {
             <label htmlFor="password" className="text-sm font-medium">
               Passwort
             </label>
-            <input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               required
               autoComplete="new-password"
               placeholder="Sicheres Passwort wählen"
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <PasswordRequirements password={password} />
           </div>
