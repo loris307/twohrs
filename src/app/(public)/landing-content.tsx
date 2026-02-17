@@ -211,12 +211,25 @@ export function LandingContent({ isLoggedIn, yesterdayTopPost, userCount = 0 }: 
           </div>
         </div>
 
-        {/* Footer link */}
-        <p className="text-sm text-muted-foreground">
-          <Link href="/about" className="underline underline-offset-4 hover:text-foreground">
-            Anti-Attention-Economy Manifesto
-          </Link>
-        </p>
+        {/* Footer links */}
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>
+            <Link href="/about" className="underline underline-offset-4 hover:text-foreground">
+              Anti-Attention-Economy Manifesto
+            </Link>
+          </p>
+          <div className="flex items-center justify-center gap-4 text-xs">
+            <Link href="/impressum" className="underline underline-offset-4 hover:text-foreground">
+              Impressum
+            </Link>
+            <Link href="/datenschutz" className="underline underline-offset-4 hover:text-foreground">
+              Datenschutz
+            </Link>
+            <Link href="/agb" className="underline underline-offset-4 hover:text-foreground">
+              AGB
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

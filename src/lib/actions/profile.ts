@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProfileSchema,
-  changeEmailSchema,
   changePasswordSchema,
 } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
@@ -66,11 +65,17 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
   const fileExt = avatarFile.name.split(".").pop() || "jpg";
   const fileName = `${user.id}/avatar.${fileExt}`;
 
+  // Strip EXIF metadata (GPS, camera info) before upload
+  const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
+  const rawBuffer = Buffer.from(await avatarFile.arrayBuffer());
+  const cleanBuffer = await stripExifMetadata(rawBuffer, avatarFile.type);
+
   const { error: uploadError } = await supabase.storage
     .from("avatars")
-    .upload(fileName, avatarFile, {
+    .upload(fileName, cleanBuffer, {
       cacheControl: "3600",
       upsert: true,
+      contentType: avatarFile.type,
     });
 
   if (uploadError) {
@@ -131,36 +136,6 @@ export async function removeAvatar(): Promise<ActionResult> {
   }
 
   revalidatePath("/settings");
-  return { success: true };
-}
-
-export async function changeEmail(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, error: "Nicht eingeloggt" };
-  }
-
-  const parsed = changeEmailSchema.safeParse({
-    email: formData.get("email") as string,
-  });
-
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
-  }
-
-  const { error } = await supabase.auth.updateUser({
-    email: parsed.data.email,
-  });
-
-  if (error) {
-    return { success: false, error: "E-Mail-Änderung fehlgeschlagen: " + error.message };
-  }
-
   return { success: true };
 }
 
@@ -231,7 +206,7 @@ export async function deleteAccount(): Promise<ActionResult> {
       .remove(avatarFiles.map((f) => `${user.id}/${f.name}`));
   }
 
-  // Delete meme files from storage
+  // Delete meme files from storage (including user's regular posts)
   const { data: memeFiles } = await adminClient.storage
     .from("memes")
     .list(user.id);
@@ -240,6 +215,22 @@ export async function deleteAccount(): Promise<ActionResult> {
     await adminClient.storage
       .from("memes")
       .remove(memeFiles.map((f) => `${user.id}/${f.name}`));
+  }
+
+  // Delete Hall of Fame images from storage (image_path references memes bucket)
+  const { data: hallOfFameEntries } = await adminClient
+    .from("top_posts_all_time")
+    .select("image_path")
+    .eq("user_id", user.id);
+
+  if (hallOfFameEntries && hallOfFameEntries.length > 0) {
+    const imagePaths = hallOfFameEntries
+      .map((e) => e.image_path)
+      .filter((p): p is string => p != null);
+
+    if (imagePaths.length > 0) {
+      await adminClient.storage.from("memes").remove(imagePaths);
+    }
   }
 
   // Delete auth user (cascades to profiles -> everything else)

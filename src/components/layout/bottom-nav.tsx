@@ -3,18 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Trophy, PlusSquare, User, Compass } from "lucide-react";
-import { useUnreadMentions } from "@/lib/hooks/use-unread-mentions";
 import { cn } from "@/lib/utils/cn";
 
 export function BottomNav({
   username,
-  unreadMentionCount = 0,
+  mentionCount = 0,
 }: {
   username?: string;
-  unreadMentionCount?: number;
+  mentionCount?: number;
 }) {
   const pathname = usePathname();
-  const mentionCount = useUnreadMentions(unreadMentionCount);
 
   const items = [
     { href: "/feed", label: "Feed", icon: Home },

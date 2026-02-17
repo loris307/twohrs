@@ -151,6 +151,7 @@ export default async function PostPage({ params }: PostPageProps) {
 
   return (
     <AppShell
+      userId={user.id}
       username={profile?.username}
       unreadMentionCount={unreadMentionCount}
       moderationStrikes={profile?.moderation_strikes ?? 0}
