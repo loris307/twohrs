@@ -28,6 +28,7 @@ export default async function AppLayout({
 
   return (
     <AppShell
+      userId={user.id}
       username={profile?.username}
       unreadMentionCount={unreadMentionCount}
       moderationStrikes={profile?.moderation_strikes ?? 0}

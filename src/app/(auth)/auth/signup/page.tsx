@@ -20,6 +20,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState<FormData | null>(null);
   const [hasShared, setHasShared] = useState(false);
   const [password, setPassword] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function SignupPage() {
     }
 
     data.set("captchaToken", captchaToken);
+    data.set("acceptTerms", acceptTerms ? "true" : "false");
 
     if (isMobile()) {
       // Mobile: show share step first
@@ -253,6 +255,35 @@ export default function SignupPage() {
             <PasswordRequirements password={password} />
           </div>
 
+          <div className="flex items-start gap-3">
+            <input
+              id="acceptTerms"
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0 rounded border-input accent-primary"
+            />
+            <label htmlFor="acceptTerms" className="text-sm text-muted-foreground">
+              Ich bin mindestens 16 Jahre alt und stimme den{" "}
+              <Link
+                href="/agb"
+                target="_blank"
+                className="text-primary underline underline-offset-4 hover:text-primary/80"
+              >
+                Nutzungsbedingungen
+              </Link>{" "}
+              und der{" "}
+              <Link
+                href="/datenschutz"
+                target="_blank"
+                className="text-primary underline underline-offset-4 hover:text-primary/80"
+              >
+                Datenschutzerklärung
+              </Link>{" "}
+              zu.
+            </label>
+          </div>
+
           {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
             <Turnstile
               ref={turnstileRef}
@@ -265,7 +296,7 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={isLoading || (!captchaToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
+            disabled={isLoading || !acceptTerms || (!captchaToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {isLoading ? (

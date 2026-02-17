@@ -83,11 +83,17 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     const fileExt = imageFile.name.split(".").pop() || "jpg";
     fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
+    // Strip EXIF metadata (GPS, camera info) before upload
+    const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
+    const rawBuffer = Buffer.from(await imageFile.arrayBuffer());
+    const cleanBuffer = await stripExifMetadata(rawBuffer, imageFile.type);
+
     const { error: uploadError } = await supabase.storage
       .from("memes")
-      .upload(fileName, imageFile, {
+      .upload(fileName, cleanBuffer, {
         cacheControl: "3600",
         upsert: false,
+        contentType: imageFile.type,
       });
 
     if (uploadError) {

@@ -52,6 +52,18 @@ export default function AboutPage() {
             Nicht ein endloser Zeitfresser. Das ist die Anti-Attention-Economy.
           </p>
         </div>
+
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <Link href="/impressum" className="underline underline-offset-4 hover:text-foreground">
+            Impressum
+          </Link>
+          <Link href="/datenschutz" className="underline underline-offset-4 hover:text-foreground">
+            Datenschutz
+          </Link>
+          <Link href="/agb" className="underline underline-offset-4 hover:text-foreground">
+            AGB
+          </Link>
+        </div>
       </div>
     </div>
   );
