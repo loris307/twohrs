@@ -9,6 +9,11 @@ import type { ActionResult } from "@/lib/types";
 
 export async function signUp(formData: FormData): Promise<ActionResult> {
   const captchaToken = formData.get("captchaToken") as string | null;
+
+  if (!captchaToken) {
+    return { success: false, error: "Captcha erforderlich" };
+  }
+
   const rawData = {
     email: formData.get("email") as string,
     password: formData.get("password") as string,
@@ -56,7 +61,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      ...(captchaToken ? { captchaToken } : {}),
+      captchaToken,
       data: {
         username: parsed.data.username,
         display_name: parsed.data.displayName || parsed.data.username,
@@ -65,7 +70,8 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   });
 
   if (error) {
-    return { success: false, error: error.message };
+    console.error("Sign-up failed:", error.message);
+    return { success: false, error: "Registrierung fehlgeschlagen" };
   }
 
   return {
@@ -76,6 +82,11 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
 
 export async function signIn(formData: FormData): Promise<ActionResult> {
   const captchaToken = formData.get("captchaToken") as string | null;
+
+  if (!captchaToken) {
+    return { success: false, error: "Captcha erforderlich" };
+  }
+
   const rawData = {
     identifier: formData.get("identifier") as string,
     password: formData.get("password") as string,
@@ -120,7 +131,7 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
-    options: captchaToken ? { captchaToken } : undefined,
+    options: { captchaToken },
   });
 
   if (error) {

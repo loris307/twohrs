@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
 import { MAX_COMMENTS_PER_SESSION } from "@/lib/constants";
-import { createCommentSchema } from "@/lib/validations";
+import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
 import type { ActionResult } from "@/lib/types";
 
@@ -14,6 +14,13 @@ export async function createComment(
   text: string,
   parentCommentId?: string
 ): Promise<ActionResult<{ id: string }>> {
+  if (!uuidSchema.safeParse(postId).success) {
+    return { success: false, error: "Ungültige Post-ID" };
+  }
+  if (parentCommentId && !uuidSchema.safeParse(parentCommentId).success) {
+    return { success: false, error: "Ungültige Kommentar-ID" };
+  }
+
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
@@ -28,9 +35,9 @@ export async function createComment(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Rate limit check
-  const today = new Date();
-  const startOfDay = new Date(today);
+  // Rate limit check (Berlin timezone to align with session window)
+  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  const startOfDay = new Date(berlinNow);
   startOfDay.setHours(0, 0, 0, 0);
 
   const { count } = await supabase
@@ -132,6 +139,10 @@ export async function createComment(
 export async function deleteComment(
   commentId: string
 ): Promise<ActionResult> {
+  if (!uuidSchema.safeParse(commentId).success) {
+    return { success: false, error: "Ungültige Kommentar-ID" };
+  }
+
   const supabase = await createClient();
 
   const {
@@ -185,6 +196,10 @@ export async function deleteComment(
 export async function toggleCommentVote(
   commentId: string
 ): Promise<ActionResult<{ voted: boolean }>> {
+  if (!uuidSchema.safeParse(commentId).success) {
+    return { success: false, error: "Ungültige Kommentar-ID" };
+  }
+
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
   }

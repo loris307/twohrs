@@ -30,11 +30,19 @@ vercel --yes --prod                                            # production → 
 vercel --yes && vercel alias <url> socialnetwork-dev.vercel.app  # preview → dev alias
 ```
 
-Database:
+Database (Supabase CLI):
 ```bash
-/opt/homebrew/opt/libpq/bin/psql "$DB_URL" -f supabase/migrations/XXX.sql  # run single migration
-vercel env ls                                                               # list env vars
-vercel env add VARIABLE_NAME production                                     # add env var
+supabase login                           # one-time: authenticate CLI with Supabase
+supabase link --project-ref <ref>        # one-time: link project (prompts for DB password)
+supabase migration list                  # show local vs remote migration status
+supabase db push                         # push pending migrations to remote DB
+supabase migration repair --status applied <version>  # mark migration as already applied
+```
+
+Environment:
+```bash
+vercel env ls                            # list env vars
+vercel env add VARIABLE_NAME production  # add env var
 ```
 
 ## Testing
@@ -106,14 +114,14 @@ src/
 │   ├── actions/           # Server Actions (auth, posts, votes, comments, follows, profile, mentions, moderation)
 │   ├── queries/           # Data fetching for Server Components (posts, comments, leaderboard, profile, mentions)
 │   ├── hooks/             # Client hooks (useCountdown, useTimeGate, useInfiniteFeed, useNewPosts, useOnlineUsers, useUnreadMentions)
-│   ├── utils/             # Pure utilities (cn, time, image, format, upload)
+│   ├── utils/             # Pure utilities (cn, time, image, format, upload, magic-bytes)
 │   ├── constants.ts       # All magic numbers and config
 │   ├── types.ts           # TypeScript types
 │   └── validations.ts     # Zod schemas
 └── middleware.ts           # Auth session refresh + time-gate routing
 
 supabase/
-├── migrations/            # SQL files (run in order, 001-027)
+├── migrations/            # SQL files (run in order, 001-030)
 ├── functions/             # Edge Functions (Deno runtime — excluded from tsconfig)
 └── seed.sql               # Initial app_config values
 ```
@@ -295,23 +303,28 @@ There are 4 separate Supabase clients for different contexts:
 - `posts.comment_count` — maintained by `handle_comment_count_change()` trigger on `comments`
 - `comments.upvote_count` — maintained by `handle_comment_vote_change()` trigger on `comment_votes`
 - `profiles.total_upvotes_received` — maintained by `handle_vote_change()` trigger
+- `profiles` protected columns (`is_admin`, `moderation_strikes`, `nsfw_strikes`, `days_won`, `total_upvotes_received`, `total_posts_created`) — `protect_profile_columns` trigger prevents client-side modification via direct API calls
 
 ### Running Migrations
 
-Migrations are in `supabase/migrations/` and must be run in order (001-027). Use psql:
+Migrations are in `supabase/migrations/` and numbered sequentially (001-030). Use the Supabase CLI:
 
 ```bash
-export PGPASSWORD="your-db-password"
-DB_URL="postgresql://postgres:$PGPASSWORD@db.YOUR-PROJECT-REF.supabase.co:5432/postgres"
+# First-time setup (one-time):
+supabase login                                # authenticate with Supabase
+supabase link --project-ref <project-ref>     # link to remote DB (prompts for DB password)
 
-for f in supabase/migrations/*.sql; do
-  psql "$DB_URL" -f "$f"
-done
+# Push new migrations:
+supabase db push                              # pushes all pending migrations to remote
 
-psql "$DB_URL" -f supabase/seed.sql
+# Check status:
+supabase migration list                       # shows which migrations are applied remotely
+
+# If a migration was applied manually (e.g. via psql) and needs to be marked:
+supabase migration repair --status applied <version>   # e.g. "029"
 ```
 
-psql is available at `/opt/homebrew/opt/libpq/bin/psql`.
+**Important:** The project uses a simple numeric naming scheme (`001`, `002`, ...) instead of Supabase's default timestamp format. The CLI handles this fine. When creating new migrations, continue the numbering sequence (next: `031`).
 
 ### Supabase Edge Functions
 
@@ -414,7 +427,7 @@ Runs via **PostgreSQL pg_cron** extension (configured in migration 017, NOT Verc
 | 22:25 | `archive_daily_leaderboard()` | Archives top 100 users to `daily_leaderboard`, increments winner's `days_won`, archives top post + comments to Hall of Fame |
 | 22:35 | `cleanup_daily_content()` | Deletes all mentions → post_hashtags → comment_votes → comments → votes → posts (FK order), then storage files |
 
-The `/api/cron/*` endpoints still exist for manual invocation (require `Authorization: Bearer $CRON_SECRET`), but they just call the database functions.
+The `/api/cron/*` endpoints still exist for manual invocation (POST only, require `Authorization: Bearer $CRON_SECRET` with timing-safe comparison), but they just call the database functions.
 
 ## GitHub & Version Control
 
@@ -565,6 +578,42 @@ This is important for the YouTube video about the project's development.
 - **Signup flow:** Desktop creates account directly. Mobile shows a share gate first (Web Share API → WhatsApp fallback) before account creation.
 - **Optimistic UI:** Used for post upvotes and comment upvotes. Immediate state change, rollback on server error.
 - **Denormalized counts:** `upvote_count` and `comment_count` are stored directly on rows and maintained by PostgreSQL triggers — never computed client-side.
-- **OG fetching:** Done server-side via `/api/og?url=...` to avoid CORS. Parses `og:title`, `og:description`, `og:image` meta tags. 5s timeout.
+- **Atomic vote toggle:** `toggleVote` uses `supabase.rpc("toggle_vote", ...)` — a SECURITY DEFINER PL/pgSQL function that atomically deletes or inserts a vote, preventing race conditions. Also enforces self-vote prevention (cannot upvote own post).
+- **OG fetching:** Done server-side via `/api/og?url=...` (requires auth). Parses `og:title`, `og:description`, `og:image` meta tags. 5s timeout. Blocks private/internal IPs via DNS resolution check.
+- **API route auth:** All API routes (`/api/feed`, `/api/search`, `/api/og`, `/api/comments`, `/api/mentions/*`) require authentication (return 401 if not logged in). Only exception: `/api/cron/*` uses Bearer token auth.
+- **Safe redirects:** Auth callback validates the `next` parameter — must start with `/`, no `//`, no `@`, no `:`. Prevents open redirect attacks.
+- **Profile data exposure:** Public profile queries use explicit column lists (not `select("*")`) to avoid leaking `is_admin`, `moderation_strikes`, `nsfw_strikes`. Use the `PublicProfile` type for client-facing profile data.
 - **Nullable image fields:** `posts.image_url` and `posts.image_path` can be null (text-only posts). Always check before accessing `.toLowerCase()` or passing to `<Image>`.
 - **Navigation progress bar:** The top loading bar (`NavigationProgress`) auto-detects `<a>`/`<Link>` clicks. For programmatic navigation via `router.push()`, you must dispatch `document.dispatchEvent(new Event("navigation-start"))` before the push call, otherwise the progress bar won't show.
+
+## Security
+
+Security audit conducted 2026-02-16 (see `plans/security-audit-2026-02-16.md`). Key hardening measures (migrations 029-030):
+
+### Server-Side
+- **SSRF protection:** `/api/og` blocks private IPs (`127.0.0.1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, IPv6 link-local) via DNS resolution before fetching
+- **Open redirect prevention:** Auth callback validates `next` parameter
+- **PostgREST filter injection prevention:** User input sanitized before `.or()` calls; cursor pagination validates date format
+- **Security headers:** X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
+- **Generic error messages:** Supabase/PostgreSQL errors logged server-side, generic messages returned to client
+- **Timing-safe secret comparison:** Cron endpoints use `crypto.timingSafeEqual()`
+- **Magic-byte upload validation:** Server-side detection of JPEG/PNG/GIF/WebP via magic bytes before Supabase Storage upload; file extension derived from detected MIME type, not user filename (`src/lib/utils/magic-bytes.ts`)
+- **Captcha enforcement:** `signUp` and `signIn` reject requests without `captchaToken`
+- **Host header allowlist:** `/post/[id]` OG metadata uses allowlist (`twohrs.com`, `socialnetwork-dev.vercel.app`, `localhost:3000`) instead of raw `x-forwarded-host`
+- **UUID validation:** All server action ID parameters validated with `z.string().uuid()` via shared `uuidSchema`
+- **Self-mention prevention:** Current user filtered out of mention inserts in posts and comments
+
+### Database
+- **Profile column protection:** `protect_profile_columns` trigger prevents users from modifying `is_admin`, `moderation_strikes`, `nsfw_strikes`, `days_won`, `total_upvotes_received`, `total_posts_created` via direct Supabase API calls
+- **Atomic vote toggle:** `toggle_vote()` PL/pgSQL function prevents race conditions and self-voting
+- **`is_app_open()` hardened:** `SET search_path = ''` added to SECURITY DEFINER function
+- **`post_hashtags` RLS tightened:** INSERT policy requires post ownership
+- **LIKE pattern injection fix:** `search_hashtags()` escapes `%`, `_`, `\` in query_prefix (migration 030)
+
+### Remaining Items (not yet fixed)
+- H7: Admin client leaks post data outside opening hours (design decision needed)
+- M2: No rate limiting on API routes
+- M6: Rate-limit timezone mismatch (UTC vs Europe/Berlin)
+- M7: NSFW check fail-open behavior
+- M10: Username availability TOCTOU race condition
+- M12: `pathname.includes(".")` middleware bypass too broad

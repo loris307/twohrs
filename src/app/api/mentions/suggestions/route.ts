@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ users: [] });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // No query → show followed users
@@ -37,10 +37,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Has query → search ALL users, prefix match on username
+  const sanitized = q.replace(/[,().%_\\]/g, "");
   const { data: users, error } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url")
-    .or(`username.ilike.${q}%,display_name.ilike.${q}%`)
+    .or(`username.ilike.${sanitized}%,display_name.ilike.${sanitized}%`)
     .neq("id", user.id)
     .order("username")
     .limit(20);

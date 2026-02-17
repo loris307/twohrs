@@ -1,9 +1,9 @@
 import { ArrowBigUp, ImageIcon, Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/utils/format";
-import type { Profile } from "@/lib/types";
+import type { PublicProfile } from "@/lib/types";
 
 interface ProfileStatsProps {
-  profile: Profile;
+  profile: PublicProfile;
 }
 
 export function ProfileStats({ profile }: ProfileStatsProps) {

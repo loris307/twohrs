@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import dns from "dns/promises";
+import { createClient } from "@/lib/supabase/server";
 
 const MAX_HTML_BYTES = 100_000; // Only read first 100KB (OG tags are in <head>)
 
@@ -30,7 +32,43 @@ function resolveImageUrl(src: string, pageUrl: URL): string {
   return src;
 }
 
+function isPrivateIP(ip: string): boolean {
+  // IPv4 loopback and unspecified
+  if (ip === "127.0.0.1" || ip === "0.0.0.0") return true;
+  // IPv6 loopback and unspecified
+  if (ip === "::1" || ip === "::") return true;
+
+  // IPv4 private ranges
+  const parts = ip.split(".").map(Number);
+  if (parts.length === 4) {
+    // 10.0.0.0/8
+    if (parts[0] === 10) return true;
+    // 172.16.0.0/12
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    // 192.168.0.0/16
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    // 169.254.0.0/16 (link-local)
+    if (parts[0] === 169 && parts[1] === 254) return true;
+  }
+
+  // IPv6 private ranges
+  const lowerIp = ip.toLowerCase();
+  // Link-local
+  if (lowerIp.startsWith("fe80")) return true;
+  // Unique local
+  if (lowerIp.startsWith("fc00") || lowerIp.startsWith("fd")) return true;
+
+  return false;
+}
+
 export async function GET(request: NextRequest) {
+  // Auth check — only authenticated users can fetch OG data
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const url = request.nextUrl.searchParams.get("url");
 
   if (!url) {
@@ -54,6 +92,16 @@ export async function GET(request: NextRequest) {
   const { isDomainBlocked } = await import("@/lib/moderation/blocked-domains");
   if (isDomainBlocked(parsedUrl.hostname)) {
     return NextResponse.json({ error: "Domain blocked" }, { status: 403 });
+  }
+
+  // Block private/internal IPs (SSRF protection)
+  try {
+    const { address } = await dns.lookup(parsedUrl.hostname);
+    if (isPrivateIP(address)) {
+      return NextResponse.json({ error: "Internal URLs not allowed" }, { status: 400 });
+    }
+  } catch {
+    return NextResponse.json({ error: "DNS resolution failed" }, { status: 400 });
   }
 
   try {

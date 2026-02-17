@@ -39,8 +39,10 @@ export async function generateMetadata({
     : "Post — twohrs";
   const description = post.caption || "Ein Post auf twohrs";
 
+  const ALLOWED_HOSTS = ["twohrs.com", "socialnetwork-dev.vercel.app", "localhost:3000"];
   const headersList = await headers();
-  const host = headersList.get("x-forwarded-host") || headersList.get("host") || "twohrs.com";
+  const rawHost = headersList.get("host") || "twohrs.com";
+  const host = ALLOWED_HOSTS.includes(rawHost) ? rawHost : "twohrs.com";
   const protocol = host.includes("localhost") ? "http" : "https";
   const postUrl = `${protocol}://${host}/post/${id}`;
 
