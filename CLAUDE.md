@@ -82,6 +82,7 @@ No test suite currently. The project has no test framework, test files, or cover
 - Bypass time-gate enforcement without explicit approval
 - Delete persistent tables (`profiles`, `follows`, `daily_leaderboard`, etc.)
 - Force push to main
+- Deploy to production (`vercel --yes --prod`) from any branch other than `main`
 - Connect Vercel to GitHub (deploys are manual via CLI)
 - Push secrets, Supabase URLs/keys, or credentials to the public repo
 
@@ -121,7 +122,7 @@ src/
 └── middleware.ts           # Auth session refresh + time-gate routing
 
 supabase/
-├── migrations/            # SQL files (run in order, 001-030)
+├── migrations/            # SQL files (run in order, 001-031)
 ├── functions/             # Edge Functions (Deno runtime — excluded from tsconfig)
 └── seed.sql               # Initial app_config values
 ```
@@ -307,7 +308,7 @@ There are 4 separate Supabase clients for different contexts:
 
 ### Running Migrations
 
-Migrations are in `supabase/migrations/` and numbered sequentially (001-030). Use the Supabase CLI:
+Migrations are in `supabase/migrations/` and numbered sequentially (001-031). Use the Supabase CLI:
 
 ```bash
 # First-time setup (one-time):
@@ -356,7 +357,7 @@ Files in `supabase/functions/` use Deno runtime with URL imports. They are **exc
 - Mentions stored in `mentions` table, extracted via regex `@([a-z0-9_]{3,20})\b`
 - Unread tracking via `profiles.last_mentions_seen_at`
 - "Erwähnungen" tab on own profile shows posts where user was mentioned
-- Unread badge in navbar/bottom-nav (polls every 30s via `useUnreadMentions`)
+- Unread badge in navbar/bottom-nav (via Supabase Realtime WebSocket in `useUnreadMentions`, no Vercel polling)
 - Mentions rendered as clickable profile links via `renderTextWithMentions()`
 - API: `/api/mentions` (list), `/api/mentions/unread` (count), `/api/mentions/suggestions` (autocomplete)
 

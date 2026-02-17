@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Trophy, PlusSquare, User, Compass } from "lucide-react";
 import { SessionTimer } from "@/components/countdown/session-timer";
-import { useUnreadMentions } from "@/lib/hooks/use-unread-mentions";
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
@@ -16,13 +15,12 @@ const navItems = [
 
 export function Navbar({
   username,
-  unreadMentionCount = 0,
+  mentionCount = 0,
 }: {
   username?: string;
-  unreadMentionCount?: number;
+  mentionCount?: number;
 }) {
   const pathname = usePathname();
-  const mentionCount = useUnreadMentions(unreadMentionCount);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
