@@ -63,6 +63,7 @@ No test suite currently. The project has no test framework, test files, or cover
 - Use `cn()` from `@/lib/utils/cn` for conditional Tailwind classes
 - Document new features in `ENTWICKLUNG.md` (and big ones in `CLAUDE.md`)
 - Dispatch `new Event("navigation-start")` before `router.push()` calls
+- **All UI text must be lowercase** — global `text-transform: lowercase` is on `<body>`. New text strings don't need manual lowercasing (CSS handles it). Only legal pages (AGB, Datenschutz, Impressum) use `normal-case`. Never add `uppercase` or `capitalize` CSS classes to UI elements.
 
 ### Ask First (get approval)
 - Adding new dependencies
