@@ -1,5 +1,14 @@
 import { ExternalLink } from "lucide-react";
 
+function isValidImageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 interface LinkPreviewProps {
   title: string | null;
   description: string | null;
@@ -23,7 +32,7 @@ export function LinkPreview({ title, description, image, url }: LinkPreviewProps
       rel="noopener noreferrer"
       className="mx-4 mb-3 block overflow-hidden rounded-lg border border-border bg-muted/30 transition-colors hover:bg-muted/60"
     >
-      {image && (
+      {image && isValidImageUrl(image) && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}

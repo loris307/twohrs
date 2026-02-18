@@ -2,15 +2,15 @@ import sharp from "sharp";
 
 /**
  * Strips EXIF metadata (GPS, camera info, etc.) from an image buffer.
- * Returns a clean buffer with no metadata. GIFs are returned as-is.
+ * Returns a clean buffer with no metadata.
  */
 export async function stripExifMetadata(
   buffer: Buffer,
   mimeType: string
 ): Promise<Buffer> {
-  // sharp doesn't handle GIFs well for metadata stripping, skip them
+  // Strip XMP/metadata from GIFs while preserving animation frames
   if (mimeType === "image/gif") {
-    return buffer;
+    return await sharp(buffer, { animated: true }).gif().toBuffer();
   }
 
   const image = sharp(buffer);

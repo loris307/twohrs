@@ -4,13 +4,44 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "edge";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function fallbackImage() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#141414",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span style={{ color: "#fafafa", fontSize: 64, fontWeight: 800 }}>
+          two
+        </span>
+        <span style={{ color: "#f97316", fontSize: 64, fontWeight: 800 }}>
+          hrs
+        </span>
+      </div>
+    ),
+    { width: 1200, height: 630 }
+  );
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
-  // Step 1: minimal test
+  // M10: Validate UUID format
+  if (!UUID_RE.test(id)) {
+    return new Response("Invalid post ID", { status: 400 });
+  }
+
   try {
     const supabase = createAdminClient();
     const { data: post } = await supabase
@@ -21,8 +52,21 @@ export async function GET(
       .eq("id", id)
       .single();
 
-    const profile = post?.profiles as unknown as { username: string; display_name: string | null; avatar_url: string | null } | null;
-    const caption = post?.caption || "Kein Post gefunden";
+    // C4: If the post doesn't exist (e.g. after daily cleanup), return fallback
+    if (!post) {
+      const fb = fallbackImage();
+      const buf = await fb.arrayBuffer();
+      return new Response(buf, {
+        headers: {
+          "Content-Type": "image/png",
+          "Content-Length": String(buf.byteLength),
+          "Cache-Control": "public, max-age=60, s-maxage=3600",
+        },
+      });
+    }
+
+    const profile = post.profiles as unknown as { username: string; display_name: string | null; avatar_url: string | null } | null;
+    const caption = post.caption || "";
     const displayName = profile?.display_name || profile?.username || "twohrs";
     const truncated = caption.length > 120 ? caption.slice(0, 117) + "..." : caption;
     const hasImage = !!post?.image_url;
@@ -188,7 +232,8 @@ export async function GET(
       },
     });
   } catch (e) {
-    // Fallback: return error as plain text
-    return new Response(`OG Error: ${String(e)}`, { status: 500 });
+    // H3: Log details server-side, return generic error to client
+    console.error("OG image generation failed:", e);
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
