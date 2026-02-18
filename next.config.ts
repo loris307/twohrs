@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live; worker-src 'self' blob:; frame-src https://challenges.cloudflare.com https://vercel.live; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+          },
         ],
       },
     ];

@@ -8,8 +8,13 @@ function verifySecret(provided: string, expected: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+  }
+
   const authHeader = request.headers.get("authorization");
-  const expected = `Bearer ${process.env.CRON_SECRET}`;
+  const expected = `Bearer ${cronSecret}`;
   if (!authHeader || !verifySecret(authHeader, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

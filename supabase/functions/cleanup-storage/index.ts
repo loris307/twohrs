@@ -4,6 +4,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
+  // Authenticate: require Bearer token matching CRON_SECRET
+  const authHeader = req.headers.get("authorization");
+  const cronSecret = Deno.env.get("CRON_SECRET");
+
+  if (!cronSecret) {
+    return new Response("Server configuration error", { status: 500 });
+  }
+
+  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

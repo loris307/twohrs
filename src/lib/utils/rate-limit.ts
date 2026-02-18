@@ -9,6 +9,10 @@ interface RateLimitEntry {
 
 const store = new Map<string, RateLimitEntry>();
 
+// Max number of unique keys in the store to prevent memory exhaustion
+// from attackers cycling through many IPs
+const MAX_STORE_SIZE = 10_000;
+
 // Cleanup old entries every 5 minutes to prevent memory leaks
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 let lastCleanup = Date.now();
@@ -24,6 +28,12 @@ function cleanup(windowMs: number) {
     if (entry.timestamps.length === 0) {
       store.delete(key);
     }
+  }
+
+  // If still over limit after cleanup, clear everything
+  // (entries expire anyway, so this is safe)
+  if (store.size > MAX_STORE_SIZE) {
+    store.clear();
   }
 }
 
@@ -50,6 +60,10 @@ export function checkRateLimit(
 
   let entry = store.get(key);
   if (!entry) {
+    // Evict all entries if store is at capacity (prevents memory exhaustion)
+    if (store.size >= MAX_STORE_SIZE) {
+      store.clear();
+    }
     entry = { timestamps: [] };
     store.set(key, entry);
   }

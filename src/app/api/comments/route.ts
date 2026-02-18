@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCommentsByPost, groupCommentsWithReplies } from "@/lib/queries/comments";
 import { createClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/validations";
 
 export async function GET(request: NextRequest) {
   const postId = request.nextUrl.searchParams.get("postId");
@@ -10,6 +11,11 @@ export async function GET(request: NextRequest) {
       { comments: [], error: "postId is required" },
       { status: 400 }
     );
+  }
+
+  const parsed = uuidSchema.safeParse(postId);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
   }
 
   try {

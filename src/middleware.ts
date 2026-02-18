@@ -57,7 +57,17 @@ export async function middleware(request: NextRequest) {
 
   // Rate limit API routes before anything else
   if (pathname.startsWith("/api")) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    // Skip rate limiting for cron endpoints — they authenticate via Bearer token
+    if (pathname.startsWith("/api/cron/")) {
+      return NextResponse.next();
+    }
+
+    // Prefer x-real-ip (set by Vercel), fall back to last IP in x-forwarded-for
+    // (last entry is the one the reverse proxy actually saw, earlier entries are spoofable)
+    const ip =
+      request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+      "unknown";
     const limit = getRateLimitForPath(pathname);
     const key = `${ip}:${pathname.split("/").slice(0, 4).join("/")}`;
     const result = checkRateLimit(key, limit);

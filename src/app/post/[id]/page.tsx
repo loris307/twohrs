@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -140,7 +139,30 @@ export default async function PostPage({ params }: PostPageProps) {
 
   // Authenticated + app open: full post view
   const post = await getPostById(id);
-  if (!post) notFound();
+  if (!post) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
+        <div className="mb-6">
+          <span className="text-4xl font-extrabold tracking-tighter">
+            two<span className="text-primary">hrs</span>
+          </span>
+        </div>
+        <p className="mt-2 text-lg font-medium">
+          Das hast du wohl verpasst.
+        </p>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">
+          Dieser Post existiert nicht mehr — auf twohrs wird jeden Tag alles gelöscht.
+          Sei nächstes Mal zwischen {OPEN_HOUR}:00 und {CLOSE_HOUR}:00 Uhr dabei!
+        </p>
+        <Link
+          href="/feed"
+          className="mt-4 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Zurück zum Feed
+        </Link>
+      </div>
+    );
+  }
 
   const { data: profile } = await supabase
     .from("profiles")

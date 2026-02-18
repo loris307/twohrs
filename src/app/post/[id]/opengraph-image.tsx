@@ -6,12 +6,44 @@ export const runtime = "edge";
 export const contentType = "image/png";
 export const size = { width: 1200, height: 630 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function brandFallback() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          height: "100%",
+          backgroundColor: "#141414",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span style={{ color: "#fafafa", fontSize: 64, fontWeight: 800 }}>
+          two
+        </span>
+        <span style={{ color: "#f97316", fontSize: 64, fontWeight: 800 }}>
+          hrs
+        </span>
+      </div>
+    ),
+    { ...size }
+  );
+}
+
 export default async function OgImage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // M10: Validate UUID format
+  if (!UUID_RE.test(id)) {
+    return brandFallback();
+  }
 
   try {
     const supabase = createAdminClient();
@@ -23,12 +55,17 @@ export default async function OgImage({
       .eq("id", id)
       .single();
 
-    const profile = post?.profiles as unknown as {
+    // C4: If post doesn't exist (e.g. after daily cleanup), return fallback
+    if (!post) {
+      return brandFallback();
+    }
+
+    const profile = post.profiles as unknown as {
       username: string;
       display_name: string | null;
       avatar_url: string | null;
     } | null;
-    const caption = post?.caption || "Kein Post gefunden";
+    const caption = post.caption || "";
     const displayName = profile?.display_name || profile?.username || "twohrs";
     const truncated =
       caption.length > 120 ? caption.slice(0, 117) + "..." : caption;
@@ -198,27 +235,6 @@ export default async function OgImage({
     );
   } catch {
     // Fallback: simple branded image
-    return new ImageResponse(
-      (
-        <div
-          style={{
-            display: "flex",
-            width: "100%",
-            height: "100%",
-            backgroundColor: "#141414",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span style={{ color: "#fafafa", fontSize: 64, fontWeight: 800 }}>
-            two
-          </span>
-          <span style={{ color: "#f97316", fontSize: 64, fontWeight: 800 }}>
-            hrs
-          </span>
-        </div>
-      ),
-      { ...size }
-    );
+    return brandFallback();
   }
 }
