@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFeedByTab, getFeedByHashtag } from "@/lib/queries/posts";
 import { FEED_TABS, DEFAULT_FEED_TAB } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/server";
 import type { FeedTab } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const cursor = request.nextUrl.searchParams.get("cursor") || undefined;
   const hashtag = request.nextUrl.searchParams.get("hashtag") || undefined;
 

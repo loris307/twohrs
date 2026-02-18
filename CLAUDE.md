@@ -30,11 +30,19 @@ vercel --yes --prod                                            # production → 
 vercel --yes && vercel alias <url> socialnetwork-dev.vercel.app  # preview → dev alias
 ```
 
-Database:
+Database (Supabase CLI):
 ```bash
-/opt/homebrew/opt/libpq/bin/psql "$DB_URL" -f supabase/migrations/XXX.sql  # run single migration
-vercel env ls                                                               # list env vars
-vercel env add VARIABLE_NAME production                                     # add env var
+supabase login                           # one-time: authenticate CLI with Supabase
+supabase link --project-ref <ref>        # one-time: link project (prompts for DB password)
+supabase migration list                  # show local vs remote migration status
+supabase db push                         # push pending migrations to remote DB
+supabase migration repair --status applied <version>  # mark migration as already applied
+```
+
+Environment:
+```bash
+vercel env ls                            # list env vars
+vercel env add VARIABLE_NAME production  # add env var
 ```
 
 ## Testing
@@ -74,6 +82,7 @@ No test suite currently. The project has no test framework, test files, or cover
 - Bypass time-gate enforcement without explicit approval
 - Delete persistent tables (`profiles`, `follows`, `daily_leaderboard`, etc.)
 - Force push to main
+- Deploy to production (`vercel --yes --prod`) from any branch other than `main`
 - Connect Vercel to GitHub (deploys are manual via CLI)
 - Push secrets, Supabase URLs/keys, or credentials to the public repo
 
@@ -106,14 +115,14 @@ src/
 │   ├── actions/           # Server Actions (auth, posts, votes, comments, follows, profile, mentions, moderation)
 │   ├── queries/           # Data fetching for Server Components (posts, comments, leaderboard, profile, mentions)
 │   ├── hooks/             # Client hooks (useCountdown, useTimeGate, useInfiniteFeed, useNewPosts, useOnlineUsers, useUnreadMentions)
-│   ├── utils/             # Pure utilities (cn, time, image, format, upload)
+│   ├── utils/             # Pure utilities (cn, time, image, format, upload, magic-bytes)
 │   ├── constants.ts       # All magic numbers and config
 │   ├── types.ts           # TypeScript types
 │   └── validations.ts     # Zod schemas
 └── middleware.ts           # Auth session refresh + time-gate routing
 
 supabase/
-├── migrations/            # SQL files (run in order, 001-027)
+├── migrations/            # SQL files (run in order, 001-031)
 ├── functions/             # Edge Functions (Deno runtime — excluded from tsconfig)
 └── seed.sql               # Initial app_config values
 ```
@@ -217,8 +226,8 @@ Copy `.env.example` to `.env` and fill in:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon (public) key
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (secret, for admin/cron operations)
 - `CRON_SECRET` — Random secret for authenticating cron job endpoints
-- `NEXT_PUBLIC_OPEN_HOUR` — (optional) Override app open hour (default: 23)
-- `NEXT_PUBLIC_CLOSE_HOUR` — (optional) Override app close hour (default: 2)
+- `NEXT_PUBLIC_OPEN_HOUR` — (optional) Override app open hour (default: 20)
+- `NEXT_PUBLIC_CLOSE_HOUR` — (optional) Override app close hour (default: 22)
 
 ## Route Groups
 
@@ -240,7 +249,7 @@ The app enforces its time window at 4 independent levels:
 The time window is configured at 3 levels:
 
 - **Env vars (recommended):** `NEXT_PUBLIC_OPEN_HOUR` and `NEXT_PUBLIC_CLOSE_HOUR` — read by `constants.ts` at build time. Different values per Vercel environment (see Deployment section).
-- **Fallback defaults:** `src/lib/constants.ts` — hardcoded fallbacks if env vars are not set (currently 23/2).
+- **Fallback defaults:** `src/lib/constants.ts` — hardcoded fallbacks if env vars are not set (currently 20/22).
 - **Database:** `app_config` table, key `time_window` — must be synced with the client constants for RLS to match.
 
 On the Preview deployment, env vars are set to `OPEN_HOUR=0, CLOSE_HOUR=24` so the app is always open for testing.
@@ -295,23 +304,28 @@ There are 4 separate Supabase clients for different contexts:
 - `posts.comment_count` — maintained by `handle_comment_count_change()` trigger on `comments`
 - `comments.upvote_count` — maintained by `handle_comment_vote_change()` trigger on `comment_votes`
 - `profiles.total_upvotes_received` — maintained by `handle_vote_change()` trigger
+- `profiles` protected columns (`is_admin`, `moderation_strikes`, `nsfw_strikes`, `days_won`, `total_upvotes_received`, `total_posts_created`) — `protect_profile_columns` trigger prevents client-side modification via direct API calls
 
 ### Running Migrations
 
-Migrations are in `supabase/migrations/` and must be run in order (001-027). Use psql:
+Migrations are in `supabase/migrations/` and numbered sequentially (001-033). Use the Supabase CLI:
 
 ```bash
-export PGPASSWORD="your-db-password"
-DB_URL="postgresql://postgres:$PGPASSWORD@db.YOUR-PROJECT-REF.supabase.co:5432/postgres"
+# First-time setup (one-time):
+supabase login                                # authenticate with Supabase
+supabase link --project-ref <project-ref>     # link to remote DB (prompts for DB password)
 
-for f in supabase/migrations/*.sql; do
-  psql "$DB_URL" -f "$f"
-done
+# Push new migrations:
+supabase db push                              # pushes all pending migrations to remote
 
-psql "$DB_URL" -f supabase/seed.sql
+# Check status:
+supabase migration list                       # shows which migrations are applied remotely
+
+# If a migration was applied manually (e.g. via psql) and needs to be marked:
+supabase migration repair --status applied <version>   # e.g. "029"
 ```
 
-psql is available at `/opt/homebrew/opt/libpq/bin/psql`.
+**Important:** The project uses a simple numeric naming scheme (`001`, `002`, ...) instead of Supabase's default timestamp format. The CLI handles this fine. When creating new migrations, continue the numbering sequence (next: `034`).
 
 ### Supabase Edge Functions
 
@@ -343,7 +357,7 @@ Files in `supabase/functions/` use Deno runtime with URL imports. They are **exc
 - Mentions stored in `mentions` table, extracted via regex `@([a-z0-9_]{3,20})\b`
 - Unread tracking via `profiles.last_mentions_seen_at`
 - "Erwähnungen" tab on own profile shows posts where user was mentioned
-- Unread badge in navbar/bottom-nav (polls every 30s via `useUnreadMentions`)
+- Unread badge in navbar/bottom-nav (via Supabase Realtime WebSocket in `useUnreadMentions`, no Vercel polling)
 - Mentions rendered as clickable profile links via `renderTextWithMentions()`
 - API: `/api/mentions` (list), `/api/mentions/unread` (count), `/api/mentions/suggestions` (autocomplete)
 
@@ -414,7 +428,7 @@ Runs via **PostgreSQL pg_cron** extension (configured in migration 017, NOT Verc
 | 22:25 | `archive_daily_leaderboard()` | Archives top 100 users to `daily_leaderboard`, increments winner's `days_won`, archives top post + comments to Hall of Fame |
 | 22:35 | `cleanup_daily_content()` | Deletes all mentions → post_hashtags → comment_votes → comments → votes → posts (FK order), then storage files |
 
-The `/api/cron/*` endpoints still exist for manual invocation (require `Authorization: Bearer $CRON_SECRET`), but they just call the database functions.
+The `/api/cron/*` endpoints still exist for manual invocation (POST only, require `Authorization: Bearer $CRON_SECRET` with timing-safe comparison), but they just call the database functions.
 
 ## GitHub & Version Control
 
@@ -473,7 +487,7 @@ Deployments happen via Vercel CLI from local (not connected to GitHub). There ar
 
 | Environment | URL | Time Window | Deploy Command |
 |-------------|-----|-------------|----------------|
-| **Production** | `https://twohrs.com` | 23:00-02:00 CET | `vercel --yes --prod` |
+| **Production** | `https://twohrs.com` | 20:00-22:00 CET | `vercel --yes --prod` |
 | **Preview (Dev)** | `https://socialnetwork-dev.vercel.app` | **Always open** (0-24) | `vercel --yes` + alias |
 
 Deployment Protection is **disabled** — Preview URLs are publicly accessible without Vercel login.
@@ -511,8 +525,8 @@ Or via Vercel Dashboard → Project Settings → Environment Variables.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key | same |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key | same |
 | `CRON_SECRET` | Cron secret | same |
-| `NEXT_PUBLIC_OPEN_HOUR` | `23` | `0` |
-| `NEXT_PUBLIC_CLOSE_HOUR` | `2` | `24` |
+| `NEXT_PUBLIC_OPEN_HOUR` | `20` | `0` |
+| `NEXT_PUBLIC_CLOSE_HOUR` | `22` | `24` |
 
 Both environments share the same Supabase database. The only difference is the time window.
 
@@ -565,6 +579,43 @@ This is important for the YouTube video about the project's development.
 - **Signup flow:** Desktop creates account directly. Mobile shows a share gate first (Web Share API → WhatsApp fallback) before account creation.
 - **Optimistic UI:** Used for post upvotes and comment upvotes. Immediate state change, rollback on server error.
 - **Denormalized counts:** `upvote_count` and `comment_count` are stored directly on rows and maintained by PostgreSQL triggers — never computed client-side.
-- **OG fetching:** Done server-side via `/api/og?url=...` to avoid CORS. Parses `og:title`, `og:description`, `og:image` meta tags. 5s timeout.
+- **Atomic vote toggle:** `toggleVote` uses `supabase.rpc("toggle_vote", ...)` — a SECURITY DEFINER PL/pgSQL function that atomically deletes or inserts a vote, preventing race conditions. Also enforces self-vote prevention (cannot upvote own post).
+- **OG fetching:** Done server-side via `/api/og?url=...` (requires auth). Parses `og:title`, `og:description`, `og:image` meta tags. 5s timeout. Blocks private/internal IPs via DNS resolution check.
+- **API route auth:** All API routes (`/api/feed`, `/api/search`, `/api/og`, `/api/comments`, `/api/mentions/*`) require authentication (return 401 if not logged in). Only exception: `/api/cron/*` uses Bearer token auth.
+- **Safe redirects:** Auth callback validates the `next` parameter — must start with `/`, no `//`, no `@`, no `:`. Prevents open redirect attacks.
+- **Profile data exposure:** Public profile queries use explicit column lists (not `select("*")`) to avoid leaking `is_admin`, `moderation_strikes`, `nsfw_strikes`. Use the `PublicProfile` type for client-facing profile data.
 - **Nullable image fields:** `posts.image_url` and `posts.image_path` can be null (text-only posts). Always check before accessing `.toLowerCase()` or passing to `<Image>`.
 - **Navigation progress bar:** The top loading bar (`NavigationProgress`) auto-detects `<a>`/`<Link>` clicks. For programmatic navigation via `router.push()`, you must dispatch `document.dispatchEvent(new Event("navigation-start"))` before the push call, otherwise the progress bar won't show.
+
+## Security
+
+Security audit conducted 2026-02-16 (see `plans/security-audit-2026-02-16.md`). Key hardening measures (migrations 029-030, 032-033):
+
+### Server-Side
+- **SSRF protection:** `/api/og` blocks private IPs (`127.0.0.1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, IPv6 link-local) via DNS resolution before fetching
+- **Open redirect prevention:** Auth callback validates `next` parameter
+- **PostgREST filter injection prevention:** User input sanitized before `.or()` calls; cursor pagination validates date format
+- **Security headers:** X-Frame-Options (DENY), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy
+- **Generic error messages:** Supabase/PostgreSQL errors logged server-side, generic messages returned to client
+- **Timing-safe secret comparison:** Cron endpoints use `crypto.timingSafeEqual()`
+- **Magic-byte upload validation:** Server-side detection of JPEG/PNG/GIF/WebP via magic bytes before Supabase Storage upload; file extension derived from detected MIME type, not user filename (`src/lib/utils/magic-bytes.ts`)
+- **Captcha enforcement:** `signUp` and `signIn` reject requests without `captchaToken`
+- **Host header allowlist:** `/post/[id]` OG metadata uses allowlist (`twohrs.com`, `socialnetwork-dev.vercel.app`, `localhost:3000`) instead of raw `x-forwarded-host`
+- **UUID validation:** All server action ID parameters validated with `z.string().uuid()` via shared `uuidSchema`
+- **Self-mention prevention:** Current user filtered out of mention inserts in posts and comments
+
+### Database
+- **Profile column protection:** `protect_profile_columns` trigger prevents users from modifying `is_admin`, `moderation_strikes`, `nsfw_strikes`, `days_won`, `total_upvotes_received`, `total_posts_created` via direct Supabase API calls
+- **Atomic vote toggle:** `toggle_vote()` PL/pgSQL function prevents race conditions and self-voting
+- **`is_app_open()` hardened:** `SET search_path = ''` added to SECURITY DEFINER function
+- **`post_hashtags` RLS tightened:** INSERT policy requires post ownership
+- **LIKE pattern injection fix:** `search_hashtags()` escapes `%`, `_`, `\` in query_prefix (migration 030)
+
+### Additional (migrations 032-033)
+- **Rate limiting:** In-memory sliding-window rate limiter on all `/api/*` routes (middleware); per-route limits (`/api/og`: 10/min, `/api/export`: 2/min, general: 60/min)
+- **NSFW fail-closed:** NSFW check rejects posts on classifier error instead of allowing them
+- **Atomic post count:** `increment_posts_created()` RPC function replaces read-then-write
+- **Profile protection fix:** `protect_profile_columns` trigger uses `SECURITY INVOKER` + `current_user` check to allow internal triggers/functions while blocking direct client API manipulation
+
+### Audit Status
+All 36 findings resolved: 33 fixed, 2 won't-fix (self-mention is intended, admin post teaser is intentional UX), 1 low-risk edge case (M6: rate-limit timezone mismatch — already mitigated by Berlin timezone usage). Full report: `plans/security-audit-2026-02-16.md`.

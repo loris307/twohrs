@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { FollowButton } from "./follow-button";
 import { formatNumber } from "@/lib/utils/format";
-import type { Profile } from "@/lib/types";
+import type { PublicProfile } from "@/lib/types";
 
 interface ProfileHeaderProps {
-  profile: Profile;
+  profile: PublicProfile;
   isOwnProfile: boolean;
   isFollowing: boolean;
   followerCount: number;

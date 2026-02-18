@@ -2,11 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
 export async function adminDeletePost(
   postId: string
 ): Promise<ActionResult<{ strikes: number; accountDeleted: boolean; username: string }>> {
+  if (!uuidSchema.safeParse(postId).success) {
+    return { success: false, error: "Ungültige Post-ID" };
+  }
+
   const supabase = await createClient();
 
   const {

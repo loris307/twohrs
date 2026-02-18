@@ -278,8 +278,12 @@ export async function getFeedByHashtag(
   if (cursor) {
     const [upStr, caStr] = cursor.split("|");
     const parsedUpvotes = parseInt(upStr, 10);
+    const parsedDate = new Date(caStr);
+    if (isNaN(parsedUpvotes) || isNaN(parsedDate.getTime())) {
+      return { posts: [], nextCursor: null };
+    }
     query = query.or(
-      `upvote_count.lt.${parsedUpvotes},and(upvote_count.eq.${parsedUpvotes},created_at.lt.${caStr})`
+      `upvote_count.lt.${parsedUpvotes},and(upvote_count.eq.${parsedUpvotes},created_at.lt.${parsedDate.toISOString()})`
     );
   }
 
@@ -389,9 +393,12 @@ export async function getFeedHot(cursor?: string): Promise<FeedPage> {
   if (cursor) {
     const [upStr, caStr] = cursor.split("|");
     const parsedUpvotes = parseInt(upStr, 10);
-    const parsedCreatedAt = caStr;
+    const parsedDate = new Date(caStr);
+    if (isNaN(parsedUpvotes) || isNaN(parsedDate.getTime())) {
+      return { posts: [], nextCursor: null };
+    }
     query = query.or(
-      `upvote_count.lt.${parsedUpvotes},and(upvote_count.eq.${parsedUpvotes},created_at.lt.${parsedCreatedAt})`
+      `upvote_count.lt.${parsedUpvotes},and(upvote_count.eq.${parsedUpvotes},created_at.lt.${parsedDate.toISOString()})`
     );
   }
 

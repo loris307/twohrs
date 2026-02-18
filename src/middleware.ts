@@ -10,6 +10,7 @@ import {
   CLOSE_MINUTE,
   GRACE_MINUTES,
 } from "@/lib/constants";
+import { checkRateLimit, getRateLimitForPath } from "@/lib/utils/rate-limit";
 
 function isTimeGatedRoute(pathname: string): boolean {
   return TIME_GATED_ROUTES.some(
@@ -54,11 +55,23 @@ function isAppOpenServer(): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static files and API routes
+  // Rate limit API routes before anything else
+  if (pathname.startsWith("/api")) {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = getRateLimitForPath(pathname);
+    const key = `${ip}:${pathname.split("/").slice(0, 4).join("/")}`;
+    const result = checkRateLimit(key, limit);
+
+    if (!result.allowed) {
+      return new NextResponse("Too Many Requests", { status: 429 });
+    }
+    return NextResponse.next();
+  }
+
+  // Skip static files
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.includes(".")
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?|ttf|map)$/i.test(pathname)
   ) {
     return NextResponse.next();
   }

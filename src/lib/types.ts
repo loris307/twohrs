@@ -13,6 +13,9 @@ export type Profile = {
   updated_at: string;
 };
 
+/** Profile data safe to expose to clients (no admin status, no strike counts). */
+export type PublicProfile = Omit<Profile, "is_admin" | "moderation_strikes" | "updated_at">;
+
 export type Post = {
   id: string;
   user_id: string;

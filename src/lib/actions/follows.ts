@@ -3,9 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isAppOpen } from "@/lib/utils/time";
+import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
 export async function followUser(followingId: string): Promise<ActionResult> {
+  if (!uuidSchema.safeParse(followingId).success) {
+    return { success: false, error: "Ungültige User-ID" };
+  }
+
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
@@ -41,6 +46,10 @@ export async function followUser(followingId: string): Promise<ActionResult> {
 }
 
 export async function unfollowUser(followingId: string): Promise<ActionResult> {
+  if (!uuidSchema.safeParse(followingId).success) {
+    return { success: false, error: "Ungültige User-ID" };
+  }
+
   const supabase = await createClient();
 
   const {

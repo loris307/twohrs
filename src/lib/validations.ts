@@ -6,6 +6,8 @@ import {
   ALLOWED_IMAGE_TYPES,
 } from "./constants";
 
+export const uuidSchema = z.string().uuid("Ungültige ID");
+
 export const usernameSchema = z
   .string()
   .min(3, "Username muss mindestens 3 Zeichen haben")

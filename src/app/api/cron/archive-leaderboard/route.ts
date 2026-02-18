@@ -1,9 +1,16 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+function verifySecret(provided: string, expected: string): boolean {
+  if (provided.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+}
+
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = `Bearer ${process.env.CRON_SECRET}`;
+  if (!authHeader || !verifySecret(authHeader, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -13,8 +20,9 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.rpc("archive_daily_leaderboard");
 
     if (error) {
+      console.error("Archive leaderboard failed:", error.message);
       return NextResponse.json(
-        { error: "Archive failed: " + error.message },
+        { error: "Archive failed" },
         { status: 500 }
       );
     }
@@ -26,8 +34,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-export async function GET(request: NextRequest) {
-  return POST(request);
 }

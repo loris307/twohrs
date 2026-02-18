@@ -9,6 +9,10 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   // Hashtag search mode
   if (q.startsWith("#")) {
@@ -16,8 +20,6 @@ export async function GET(request: NextRequest) {
     if (!hashtagQuery) {
       return NextResponse.json({ hashtags: [] });
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
 
     // Use DB function for efficient GROUP BY
     const { data: results, error } = await supabase.rpc("search_hashtags", {
@@ -29,14 +31,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Check which hashtags the user follows
-    let followedHashtags = new Set<string>();
-    if (user) {
-      const { data: follows } = await supabase
-        .from("hashtag_follows")
-        .select("hashtag")
-        .eq("user_id", user.id);
-      followedHashtags = new Set((follows ?? []).map((f) => f.hashtag));
-    }
+    const { data: follows } = await supabase
+      .from("hashtag_follows")
+      .select("hashtag")
+      .eq("user_id", user.id);
+    const followedHashtags = new Set((follows ?? []).map((f) => f.hashtag));
 
     const hashtags = (results ?? []).map((r: { hashtag: string; post_count: number }) => ({
       hashtag: r.hashtag,
@@ -48,10 +47,11 @@ export async function GET(request: NextRequest) {
   }
 
   // User search mode (existing behavior)
+  const sanitized = q.replace(/[,().%_\\]/g, "");
   const { data: users, error } = await supabase
     .from("profiles")
     .select("id, username, display_name, avatar_url")
-    .or(`username.ilike.${q}%,display_name.ilike.${q}%`)
+    .or(`username.ilike.${sanitized}%,display_name.ilike.${sanitized}%`)
     .order("username")
     .limit(20);
 

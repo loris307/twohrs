@@ -3,11 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isAppOpen } from "@/lib/utils/time";
+import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
 export async function toggleVote(
   postId: string
 ): Promise<ActionResult<{ voted: boolean }>> {
+  if (!uuidSchema.safeParse(postId).success) {
+    return { success: false, error: "Ungültige Post-ID" };
+  }
+
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
@@ -22,39 +27,19 @@ export async function toggleVote(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Check if vote exists
-  const { data: existingVote } = await supabase
-    .from("votes")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("post_id", postId)
-    .single();
+  // Atomic vote toggle via DB function (prevents race conditions + self-voting)
+  const { data: voted, error } = await supabase.rpc("toggle_vote", {
+    p_user_id: user.id,
+    p_post_id: postId,
+  });
 
-  if (existingVote) {
-    // Remove vote
-    const { error } = await supabase
-      .from("votes")
-      .delete()
-      .eq("id", existingVote.id);
-
-    if (error) {
-      return { success: false, error: "Vote entfernen fehlgeschlagen" };
+  if (error) {
+    if (error.message.includes("Cannot vote on own post")) {
+      return { success: false, error: "Du kannst deinen eigenen Post nicht upvoten" };
     }
-
-    revalidatePath("/feed");
-    return { success: true, data: { voted: false } };
-  } else {
-    // Add vote
-    const { error } = await supabase.from("votes").insert({
-      user_id: user.id,
-      post_id: postId,
-    });
-
-    if (error) {
-      return { success: false, error: "Vote fehlgeschlagen" };
-    }
-
-    revalidatePath("/feed");
-    return { success: true, data: { voted: true } };
+    return { success: false, error: "Vote fehlgeschlagen" };
   }
+
+  revalidatePath("/feed");
+  return { success: true, data: { voted: voted as boolean } };
 }

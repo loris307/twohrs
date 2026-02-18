@@ -6,6 +6,7 @@ import {
   updateProfileSchema,
   changePasswordSchema,
 } from "@/lib/validations";
+import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import type { ActionResult } from "@/lib/types";
 
 export async function updateProfile(formData: FormData): Promise<ActionResult> {
@@ -62,7 +63,14 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Kein Bild ausgewählt" };
   }
 
-  const fileExt = avatarFile.name.split(".").pop() || "jpg";
+  // Server-side magic-byte validation
+  const avatarBuffer = await avatarFile.arrayBuffer();
+  const detectedMime = detectImageMime(avatarBuffer);
+  if (!detectedMime) {
+    return { success: false, error: "Ungültiger Dateityp. Nur JPEG, PNG, GIF und WebP erlaubt." };
+  }
+
+  const fileExt = getExtensionFromMime(detectedMime);
   const fileName = `${user.id}/avatar.${fileExt}`;
 
   // Strip EXIF metadata (GPS, camera info) before upload
@@ -75,7 +83,7 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
     .upload(fileName, cleanBuffer, {
       cacheControl: "3600",
       upsert: true,
-      contentType: avatarFile.type,
+      contentType: detectedMime,
     });
 
   if (uploadError) {
@@ -175,7 +183,8 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
   });
 
   if (error) {
-    return { success: false, error: "Passwort-Änderung fehlgeschlagen: " + error.message };
+    console.error("Password change failed:", error.message);
+    return { success: false, error: "Passwort-Änderung fehlgeschlagen" };
   }
 
   return { success: true };

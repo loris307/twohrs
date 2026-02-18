@@ -8,6 +8,8 @@ import { isAppOpen } from "@/lib/utils/time";
 import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH } from "@/lib/constants";
 import { extractMentions } from "@/lib/utils/mentions";
 import { extractHashtags } from "@/lib/utils/hashtags";
+import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
+import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
 export async function createPost(formData: FormData): Promise<ActionResult> {
@@ -27,9 +29,9 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Rate limit check
-  const today = new Date();
-  const startOfDay = new Date(today);
+  // Rate limit check (Berlin timezone to align with session window)
+  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  const startOfDay = new Date(berlinNow);
   startOfDay.setHours(0, 0, 0, 0);
 
   const { count } = await supabase
@@ -80,7 +82,14 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
 
   // Upload image if present
   if (hasImage) {
-    const fileExt = imageFile.name.split(".").pop() || "jpg";
+    // Server-side magic-byte validation
+    const imageBuffer = await imageFile.arrayBuffer();
+    const detectedMime = detectImageMime(imageBuffer);
+    if (!detectedMime) {
+      return { success: false, error: "Ungültiger Dateityp. Nur JPEG, PNG, GIF und WebP erlaubt." };
+    }
+
+    const fileExt = getExtensionFromMime(detectedMime);
     fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     // Strip EXIF metadata (GPS, camera info) before upload
@@ -93,11 +102,12 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
       .upload(fileName, cleanBuffer, {
         cacheControl: "3600",
         upsert: false,
-        contentType: imageFile.type,
+        contentType: detectedMime,
       });
 
     if (uploadError) {
-      return { success: false, error: "Bild-Upload fehlgeschlagen: " + uploadError.message };
+      console.error("Image upload failed:", uploadError.message);
+      return { success: false, error: "Bild-Upload fehlgeschlagen" };
     }
 
     publicUrl = supabase.storage.from("memes").getPublicUrl(fileName).data.publicUrl;
@@ -125,8 +135,12 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
         }
       }
     } catch {
-      // Fail-open: if NSFW check fails, allow the post
-      console.error("NSFW check failed in createPost, allowing as fallback");
+      // Fail-closed: if NSFW check fails, reject the post and clean up
+      console.error("NSFW check failed in createPost, rejecting as safety fallback");
+      if (fileName) {
+        await supabase.storage.from("memes").remove([fileName]);
+      }
+      return { success: false, error: "Bild konnte nicht überprüft werden. Bitte versuche es erneut." };
     }
   }
 
@@ -181,21 +195,8 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     }
   }
 
-  // Increment total_posts_created
-  const { data: currentProfile } = await supabase
-    .from("profiles")
-    .select("total_posts_created")
-    .eq("id", user.id)
-    .single();
-
-  if (currentProfile) {
-    await supabase
-      .from("profiles")
-      .update({
-        total_posts_created: currentProfile.total_posts_created + 1,
-      })
-      .eq("id", user.id);
-  }
+  // Atomic increment total_posts_created (prevents race condition)
+  await supabase.rpc("increment_posts_created", { p_user_id: user.id });
 
   revalidatePath("/feed");
   redirect("/feed");
@@ -226,9 +227,9 @@ export async function createPostRecord(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Rate limit check
-  const today = new Date();
-  const startOfDay = new Date(today);
+  // Rate limit check (Berlin timezone to align with session window)
+  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  const startOfDay = new Date(berlinNow);
   startOfDay.setHours(0, 0, 0, 0);
 
   const { count } = await supabase
@@ -301,7 +302,7 @@ export async function createPostRecord(
     if (imagePath) {
       await supabase.storage.from("memes").remove([imagePath]);
     }
-    return { success: false, error: "Post erstellen fehlgeschlagen: " + (insertError?.message ?? "Unknown error") };
+    return { success: false, error: "Post konnte nicht erstellt werden" };
   }
 
   // Extract and store @mentions (admin client bypasses RLS)
@@ -335,26 +336,18 @@ export async function createPostRecord(
     }
   }
 
-  const { data: currentProfile } = await supabase
-    .from("profiles")
-    .select("total_posts_created")
-    .eq("id", user.id)
-    .single();
-
-  if (currentProfile) {
-    await supabase
-      .from("profiles")
-      .update({
-        total_posts_created: currentProfile.total_posts_created + 1,
-      })
-      .eq("id", user.id);
-  }
+  // Atomic increment total_posts_created (prevents race condition)
+  await supabase.rpc("increment_posts_created", { p_user_id: user.id });
 
   revalidatePath("/feed");
   return { success: true };
 }
 
 export async function deletePost(postId: string): Promise<ActionResult> {
+  if (!uuidSchema.safeParse(postId).success) {
+    return { success: false, error: "Ungültige Post-ID" };
+  }
+
   const supabase = await createClient();
 
   const {

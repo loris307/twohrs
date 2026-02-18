@@ -18,22 +18,15 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    let isAdmin = false;
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", user.id)
-        .single();
-      isAdmin = profile?.is_admin ?? false;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const flat = await getCommentsByPost(postId);
     const comments = groupCommentsWithReplies(flat);
     return NextResponse.json({
       comments,
-      currentUserId: user?.id ?? null,
-      isAdmin,
+      currentUserId: user.id,
     });
   } catch {
     return NextResponse.json({ comments: [] }, { status: 500 });
