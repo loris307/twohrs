@@ -46,6 +46,9 @@ export const signUpSchema = z.object({
     .string()
     .max(50, "Anzeigename darf maximal 50 Zeichen haben")
     .optional(),
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: "Du musst den Nutzungsbedingungen und der Datenschutzerklärung zustimmen" }),
+  }),
 });
 
 export const signInSchema = z.object({
@@ -76,10 +79,6 @@ export const updateProfileSchema = z.object({
     .string()
     .max(160, "Bio darf maximal 160 Zeichen haben")
     .optional(),
-});
-
-export const changeEmailSchema = z.object({
-  email: z.string().email("Ungültige E-Mail-Adresse"),
 });
 
 export const changePasswordSchema = z

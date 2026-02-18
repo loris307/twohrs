@@ -26,6 +26,9 @@ export async function GET() {
     followersResult,
     leaderboardResult,
     hashtagFollowsResult,
+    mentionsReceivedResult,
+    mentionsSentResult,
+    hallOfFameResult,
   ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", user.id).single(),
     admin.from("posts").select("*").eq("user_id", user.id),
@@ -49,6 +52,18 @@ export async function GET() {
       .from("hashtag_follows")
       .select("*")
       .eq("user_id", user.id),
+    admin
+      .from("mentions")
+      .select("*")
+      .eq("mentioned_user_id", user.id),
+    admin
+      .from("mentions")
+      .select("*")
+      .eq("mentioning_user_id", user.id),
+    admin
+      .from("top_posts_all_time")
+      .select("*")
+      .eq("user_id", user.id),
   ]);
 
   const exportData = {
@@ -68,6 +83,11 @@ export async function GET() {
     },
     hashtagFollows: hashtagFollowsResult.data ?? [],
     leaderboardHistory: leaderboardResult.data ?? [],
+    mentions: {
+      received: mentionsReceivedResult.data ?? [],
+      sent: mentionsSentResult.data ?? [],
+    },
+    hallOfFame: hallOfFameResult.data ?? [],
   };
 
   return new NextResponse(JSON.stringify(exportData, null, 2), {

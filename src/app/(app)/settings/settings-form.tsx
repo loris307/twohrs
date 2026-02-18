@@ -8,7 +8,6 @@ import {
   LogOut,
   Trash2,
   Download,
-  Mail,
   Lock,
   X,
 } from "lucide-react";
@@ -17,7 +16,6 @@ import {
   updateProfile,
   updateAvatar,
   removeAvatar,
-  changeEmail,
   changePassword,
   deleteAccount,
 } from "@/lib/actions/profile";
@@ -44,9 +42,7 @@ export function SettingsForm({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showEmailChange, setShowEmailChange] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -97,23 +93,6 @@ export function SettingsForm({
     }
 
     setIsRemovingAvatar(false);
-  }
-
-  async function handleEmailChange(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setIsChangingEmail(true);
-
-    const formData = new FormData(e.currentTarget);
-    const result = await changeEmail(formData);
-
-    if (result.success) {
-      toast.success("Bestätigungsmail an die neue Adresse gesendet");
-      setShowEmailChange(false);
-    } else {
-      toast.error(result.error);
-    }
-
-    setIsChangingEmail(false);
   }
 
   async function handlePasswordChange(e: React.FormEvent<HTMLFormElement>) {
@@ -270,46 +249,10 @@ export function SettingsForm({
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Konto</h2>
 
-        {/* Email */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">E-Mail</p>
-              <p className="text-sm text-muted-foreground">{userEmail}</p>
-            </div>
-            <button
-              onClick={() => setShowEmailChange(!showEmailChange)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium transition-colors hover:bg-accent"
-            >
-              {showEmailChange ? (
-                <X className="h-3 w-3" />
-              ) : (
-                <Mail className="h-3 w-3" />
-              )}
-              {showEmailChange ? "Abbrechen" : "Ändern"}
-            </button>
-          </div>
-
-          {showEmailChange && (
-            <form onSubmit={handleEmailChange} className="space-y-3">
-              <input
-                name="email"
-                type="email"
-                placeholder="Neue E-Mail-Adresse"
-                required
-                className={inputClasses}
-              />
-              <button
-                type="submit"
-                disabled={isChangingEmail}
-                className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                {isChangingEmail
-                  ? "Wird gesendet..."
-                  : "Bestätigungsmail senden"}
-              </button>
-            </form>
-          )}
+        {/* Email (read-only) */}
+        <div className="space-y-1">
+          <p className="text-sm font-medium">E-Mail</p>
+          <p className="text-sm text-muted-foreground">{userEmail}</p>
         </div>
 
         {/* Password */}

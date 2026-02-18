@@ -10,6 +10,17 @@ export function Footer() {
             Anti-Attention-Economy
           </Link>
         </p>
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <Link href="/impressum" className="underline underline-offset-4 hover:text-foreground">
+            Impressum
+          </Link>
+          <Link href="/datenschutz" className="underline underline-offset-4 hover:text-foreground">
+            Datenschutz
+          </Link>
+          <Link href="/agb" className="underline underline-offset-4 hover:text-foreground">
+            AGB
+          </Link>
+        </div>
       </div>
     </footer>
   );
