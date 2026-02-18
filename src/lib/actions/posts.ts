@@ -130,8 +130,12 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
         }
       }
     } catch {
-      // Fail-open: if NSFW check fails, allow the post
-      console.error("NSFW check failed in createPost, allowing as fallback");
+      // Fail-closed: if NSFW check fails, reject the post and clean up
+      console.error("NSFW check failed in createPost, rejecting as safety fallback");
+      if (fileName) {
+        await supabase.storage.from("memes").remove([fileName]);
+      }
+      return { success: false, error: "Bild konnte nicht überprüft werden. Bitte versuche es erneut." };
     }
   }
 
@@ -186,21 +190,8 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     }
   }
 
-  // Increment total_posts_created
-  const { data: currentProfile } = await supabase
-    .from("profiles")
-    .select("total_posts_created")
-    .eq("id", user.id)
-    .single();
-
-  if (currentProfile) {
-    await supabase
-      .from("profiles")
-      .update({
-        total_posts_created: currentProfile.total_posts_created + 1,
-      })
-      .eq("id", user.id);
-  }
+  // Atomic increment total_posts_created (prevents race condition)
+  await supabase.rpc("increment_posts_created", { p_user_id: user.id });
 
   revalidatePath("/feed");
   redirect("/feed");
@@ -340,20 +331,8 @@ export async function createPostRecord(
     }
   }
 
-  const { data: currentProfile } = await supabase
-    .from("profiles")
-    .select("total_posts_created")
-    .eq("id", user.id)
-    .single();
-
-  if (currentProfile) {
-    await supabase
-      .from("profiles")
-      .update({
-        total_posts_created: currentProfile.total_posts_created + 1,
-      })
-      .eq("id", user.id);
-  }
+  // Atomic increment total_posts_created (prevents race condition)
+  await supabase.rpc("increment_posts_created", { p_user_id: user.id });
 
   revalidatePath("/feed");
   return { success: true };

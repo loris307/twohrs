@@ -226,8 +226,8 @@ Copy `.env.example` to `.env` and fill in:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon (public) key
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (secret, for admin/cron operations)
 - `CRON_SECRET` — Random secret for authenticating cron job endpoints
-- `NEXT_PUBLIC_OPEN_HOUR` — (optional) Override app open hour (default: 23)
-- `NEXT_PUBLIC_CLOSE_HOUR` — (optional) Override app close hour (default: 2)
+- `NEXT_PUBLIC_OPEN_HOUR` — (optional) Override app open hour (default: 20)
+- `NEXT_PUBLIC_CLOSE_HOUR` — (optional) Override app close hour (default: 22)
 
 ## Route Groups
 
@@ -249,7 +249,7 @@ The app enforces its time window at 4 independent levels:
 The time window is configured at 3 levels:
 
 - **Env vars (recommended):** `NEXT_PUBLIC_OPEN_HOUR` and `NEXT_PUBLIC_CLOSE_HOUR` — read by `constants.ts` at build time. Different values per Vercel environment (see Deployment section).
-- **Fallback defaults:** `src/lib/constants.ts` — hardcoded fallbacks if env vars are not set (currently 23/2).
+- **Fallback defaults:** `src/lib/constants.ts` — hardcoded fallbacks if env vars are not set (currently 20/22).
 - **Database:** `app_config` table, key `time_window` — must be synced with the client constants for RLS to match.
 
 On the Preview deployment, env vars are set to `OPEN_HOUR=0, CLOSE_HOUR=24` so the app is always open for testing.
@@ -308,7 +308,7 @@ There are 4 separate Supabase clients for different contexts:
 
 ### Running Migrations
 
-Migrations are in `supabase/migrations/` and numbered sequentially (001-031). Use the Supabase CLI:
+Migrations are in `supabase/migrations/` and numbered sequentially (001-033). Use the Supabase CLI:
 
 ```bash
 # First-time setup (one-time):
@@ -325,7 +325,7 @@ supabase migration list                       # shows which migrations are appli
 supabase migration repair --status applied <version>   # e.g. "029"
 ```
 
-**Important:** The project uses a simple numeric naming scheme (`001`, `002`, ...) instead of Supabase's default timestamp format. The CLI handles this fine. When creating new migrations, continue the numbering sequence (next: `031`).
+**Important:** The project uses a simple numeric naming scheme (`001`, `002`, ...) instead of Supabase's default timestamp format. The CLI handles this fine. When creating new migrations, continue the numbering sequence (next: `034`).
 
 ### Supabase Edge Functions
 
@@ -487,7 +487,7 @@ Deployments happen via Vercel CLI from local (not connected to GitHub). There ar
 
 | Environment | URL | Time Window | Deploy Command |
 |-------------|-----|-------------|----------------|
-| **Production** | `https://twohrs.com` | 23:00-02:00 CET | `vercel --yes --prod` |
+| **Production** | `https://twohrs.com` | 20:00-22:00 CET | `vercel --yes --prod` |
 | **Preview (Dev)** | `https://socialnetwork-dev.vercel.app` | **Always open** (0-24) | `vercel --yes` + alias |
 
 Deployment Protection is **disabled** — Preview URLs are publicly accessible without Vercel login.
@@ -525,8 +525,8 @@ Or via Vercel Dashboard → Project Settings → Environment Variables.
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key | same |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role key | same |
 | `CRON_SECRET` | Cron secret | same |
-| `NEXT_PUBLIC_OPEN_HOUR` | `23` | `0` |
-| `NEXT_PUBLIC_CLOSE_HOUR` | `2` | `24` |
+| `NEXT_PUBLIC_OPEN_HOUR` | `20` | `0` |
+| `NEXT_PUBLIC_CLOSE_HOUR` | `22` | `24` |
 
 Both environments share the same Supabase database. The only difference is the time window.
 
@@ -589,7 +589,7 @@ This is important for the YouTube video about the project's development.
 
 ## Security
 
-Security audit conducted 2026-02-16 (see `plans/security-audit-2026-02-16.md`). Key hardening measures (migrations 029-030):
+Security audit conducted 2026-02-16 (see `plans/security-audit-2026-02-16.md`). Key hardening measures (migrations 029-030, 032-033):
 
 ### Server-Side
 - **SSRF protection:** `/api/og` blocks private IPs (`127.0.0.1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, IPv6 link-local) via DNS resolution before fetching
@@ -611,10 +611,11 @@ Security audit conducted 2026-02-16 (see `plans/security-audit-2026-02-16.md`). 
 - **`post_hashtags` RLS tightened:** INSERT policy requires post ownership
 - **LIKE pattern injection fix:** `search_hashtags()` escapes `%`, `_`, `\` in query_prefix (migration 030)
 
-### Remaining Items (not yet fixed)
-- H7: Admin client leaks post data outside opening hours (design decision needed)
-- M2: No rate limiting on API routes
-- M6: Rate-limit timezone mismatch (UTC vs Europe/Berlin)
-- M7: NSFW check fail-open behavior
-- M10: Username availability TOCTOU race condition
-- M12: `pathname.includes(".")` middleware bypass too broad
+### Additional (migrations 032-033)
+- **Rate limiting:** In-memory sliding-window rate limiter on all `/api/*` routes (middleware); per-route limits (`/api/og`: 10/min, `/api/export`: 2/min, general: 60/min)
+- **NSFW fail-closed:** NSFW check rejects posts on classifier error instead of allowing them
+- **Atomic post count:** `increment_posts_created()` RPC function replaces read-then-write
+- **Profile protection fix:** `protect_profile_columns` trigger uses `SECURITY INVOKER` + `current_user` check to allow internal triggers/functions while blocking direct client API manipulation
+
+### Audit Status
+All 36 findings resolved: 33 fixed, 2 won't-fix (self-mention is intended, admin post teaser is intentional UX), 1 low-risk edge case (M6: rate-limit timezone mismatch — already mitigated by Berlin timezone usage). Full report: `plans/security-audit-2026-02-16.md`.

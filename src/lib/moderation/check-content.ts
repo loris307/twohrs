@@ -44,9 +44,13 @@ export async function checkPostContent(
         }
       }
     } catch {
-      // If NSFW check fails, allow the post (fail-open).
-      // Admin moderation remains as manual backup.
-      console.error("NSFW classification failed, allowing post as fallback");
+      // Fail-closed: if NSFW check fails, reject the post
+      console.error("NSFW classification failed, rejecting as safety fallback");
+      return {
+        allowed: false,
+        reason: "Bild konnte nicht überprüft werden",
+        type: "nsfw_image",
+      };
     }
   }
 

@@ -70,6 +70,10 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   });
 
   if (error) {
+    // Catch UNIQUE constraint violation on username (TOCTOU race)
+    if (error.message?.toLowerCase().includes("unique") || error.message?.toLowerCase().includes("duplicate")) {
+      return { success: false, error: "Dieser Username ist bereits vergeben" };
+    }
     console.error("Sign-up failed:", error.message);
     return { success: false, error: "Registrierung fehlgeschlagen" };
   }
