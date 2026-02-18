@@ -7,7 +7,7 @@ export function CountdownTimer() {
 
   return (
     <div className="space-y-4 text-center">
-      <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
+      <p className="text-sm font-medium tracking-widest text-muted-foreground">
         Öffnet in
       </p>
       <div className="flex items-center justify-center gap-2">
