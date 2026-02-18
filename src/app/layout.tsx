@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
+import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,6 +15,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#1b1b1b",
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
@@ -38,6 +41,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/image.webp"],
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "twohrs",
+  },
 };
 
 export default function RootLayout({
@@ -49,6 +57,7 @@ export default function RootLayout({
     <html lang="de" className="dark">
       <body className={`${inter.variable} font-sans antialiased lowercase`}>
         <NavigationProgress />
+        <ServiceWorkerRegister />
         {children}
         <Toaster
           theme="dark"
