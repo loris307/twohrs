@@ -10,7 +10,9 @@ import {
   Download,
   Lock,
   X,
+  Loader2,
 } from "lucide-react";
+import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB } from "@/lib/constants";
 import { toast } from "sonner";
 import {
   updateProfile,
@@ -40,6 +42,7 @@ export function SettingsForm({
 }: SettingsFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -69,15 +72,38 @@ export function SettingsForm({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset file input so the same file can be re-selected and onChange fires again
+    e.target.value = "";
+
+    // Client-side validation (fast feedback before server round-trip)
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Ungültiger Dateityp. Nur JPEG, PNG und WebP erlaubt.");
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      toast.error(`Bild ist zu groß. Maximal ${MAX_AVATAR_SIZE_MB} MB erlaubt.`);
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
     const formData = new FormData();
     formData.append("avatar", file);
 
-    const result = await updateAvatar(formData);
-    if (result.success) {
-      toast.success("Avatar aktualisiert");
-      router.refresh();
-    } else {
-      toast.error(result.error);
+    try {
+      const result = await updateAvatar(formData);
+      if (result.success) {
+        toast.success("Avatar aktualisiert");
+        router.refresh();
+      } else {
+        toast.error(result.error);
+      }
+    } catch {
+      toast.error("Avatar-Upload fehlgeschlagen. Bitte versuche es erneut.");
+    } finally {
+      setIsUploadingAvatar(false);
     }
   }
 
@@ -149,8 +175,8 @@ export function SettingsForm({
         {/* Avatar */}
         <div className="flex items-center gap-4">
           <div
-            className="relative cursor-pointer"
-            onClick={() => avatarInputRef.current?.click()}
+            className={`relative ${isUploadingAvatar ? "pointer-events-none" : "cursor-pointer"}`}
+            onClick={() => !isUploadingAvatar && avatarInputRef.current?.click()}
           >
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-2xl font-bold">
               {avatarUrl ? (
@@ -165,16 +191,24 @@ export function SettingsForm({
                 "?"
               )}
             </div>
-            <div className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Camera className="h-3.5 w-3.5" />
-            </div>
+            {isUploadingAvatar ? (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60">
+                <Loader2 className="h-6 w-6 animate-spin text-white" />
+              </div>
+            ) : (
+              <div className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Camera className="h-3.5 w-3.5" />
+              </div>
+            )}
           </div>
           <div>
-            <p className="text-sm font-medium">Avatar ändern</p>
-            <p className="text-xs text-muted-foreground">
-              JPEG, PNG oder WebP — Max. 2 MB
+            <p className="text-sm font-medium">
+              {isUploadingAvatar ? "Wird hochgeladen..." : "Avatar ändern"}
             </p>
-            {avatarUrl && (
+            <p className="text-xs text-muted-foreground">
+              JPEG, PNG oder WebP — Max. {MAX_AVATAR_SIZE_MB} MB
+            </p>
+            {avatarUrl && !isUploadingAvatar && (
               <button
                 onClick={handleRemoveAvatar}
                 disabled={isRemovingAvatar}
@@ -189,6 +223,7 @@ export function SettingsForm({
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={handleAvatarChange}
+            disabled={isUploadingAvatar}
             className="hidden"
           />
         </div>

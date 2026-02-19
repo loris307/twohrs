@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
               placeholder="Neues Passwort"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base normal-case ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <PasswordRequirements password={password} />
           </div>
@@ -127,7 +127,7 @@ export default function ResetPasswordPage() {
               placeholder="Passwort wiederholen"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base normal-case ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {confirmPassword && password !== confirmPassword && (
               <p className="text-xs text-destructive">

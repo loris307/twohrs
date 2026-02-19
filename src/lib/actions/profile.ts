@@ -7,6 +7,7 @@ import {
   changePasswordSchema,
 } from "@/lib/validations";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
+import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB } from "@/lib/constants";
 import type { ActionResult } from "@/lib/types";
 
 export async function updateProfile(formData: FormData): Promise<ActionResult> {
@@ -63,20 +64,53 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Kein Bild ausgewählt" };
   }
 
+  // File size check
+  if (avatarFile.size > MAX_AVATAR_SIZE_BYTES) {
+    return { success: false, error: `Bild ist zu groß. Maximal ${MAX_AVATAR_SIZE_MB} MB erlaubt.` };
+  }
+
   // Server-side magic-byte validation
   const avatarBuffer = await avatarFile.arrayBuffer();
   const detectedMime = detectImageMime(avatarBuffer);
   if (!detectedMime) {
-    return { success: false, error: "Ungültiger Dateityp. Nur JPEG, PNG, GIF und WebP erlaubt." };
+    return { success: false, error: "Ungültiger Dateityp. Nur JPEG, PNG und WebP erlaubt." };
+  }
+
+  // Strip EXIF metadata (GPS, camera info) before upload
+  const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
+  const rawBuffer = Buffer.from(avatarBuffer);
+  const cleanBuffer = await stripExifMetadata(rawBuffer, avatarFile.type);
+
+  // NSFW check (fail-closed: reject on error)
+  try {
+    const { classifyImage } = await import("@/lib/moderation/nsfw");
+    const result = await classifyImage(cleanBuffer);
+    if (result.isNsfw) {
+      const { addModerationStrike } = await import("@/lib/moderation/strikes");
+      const { accountDeleted } = await addModerationStrike(user.id, { column: "nsfw_strikes" });
+      if (accountDeleted) {
+        return { success: false, error: "Dein Account wurde gesperrt." };
+      }
+      return { success: false, error: "Dieses Bild verstößt gegen unsere Richtlinien." };
+    }
+  } catch {
+    console.error("NSFW check failed for avatar, rejecting as safety fallback");
+    return { success: false, error: "Bild konnte nicht überprüft werden. Bitte versuche es erneut." };
+  }
+
+  // Delete all existing avatar files (handles extension changes, e.g. avatar.png → avatar.jpg)
+  const { data: existingFiles } = await supabase.storage
+    .from("avatars")
+    .list(user.id);
+
+  if (existingFiles && existingFiles.length > 0) {
+    await supabase.storage
+      .from("avatars")
+      .remove(existingFiles.map((f) => `${user.id}/${f.name}`));
   }
 
   const fileExt = getExtensionFromMime(detectedMime);
   const fileName = `${user.id}/avatar.${fileExt}`;
-
-  // Strip EXIF metadata (GPS, camera info) before upload
-  const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
-  const rawBuffer = Buffer.from(await avatarFile.arrayBuffer());
-  const cleanBuffer = await stripExifMetadata(rawBuffer, avatarFile.type);
 
   const { error: uploadError } = await supabase.storage
     .from("avatars")
@@ -90,14 +124,16 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Avatar-Upload fehlgeschlagen" };
   }
 
+  // Cache-busting: append timestamp so browsers/CDN don't serve stale image
   const {
     data: { publicUrl },
   } = supabase.storage.from("avatars").getPublicUrl(fileName);
+  const avatarUrlWithCacheBust = `${publicUrl}?t=${Date.now()}`;
 
   const { error: updateError } = await supabase
     .from("profiles")
     .update({
-      avatar_url: publicUrl,
+      avatar_url: avatarUrlWithCacheBust,
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
