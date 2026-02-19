@@ -87,7 +87,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Update Supabase session
-  const { user, supabaseResponse } = await updateSession(request);
+  const { user, supabase, supabaseResponse } = await updateSession(request);
 
   // Public routes: always accessible, no auth needed
   if (isPublicRoute(pathname)) {
@@ -99,6 +99,22 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
+  }
+
+  // Admin-only mode: block non-admin users from all authenticated routes
+  if (process.env.ADMIN_ONLY_MODE === "true") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.is_admin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      url.searchParams.set("admin_only", "true");
+      return NextResponse.redirect(url);
+    }
   }
 
   // Always accessible routes for authenticated users (settings, leaderboard history, profile stats)

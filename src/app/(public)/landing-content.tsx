@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Flame, Trash2, Trophy, ArrowBigUp, MessageCircle, Users, Settings } from "lucide-react";
+import { Clock, Flame, Trash2, Trophy, ArrowBigUp, MessageCircle, Users, Settings, ShieldAlert } from "lucide-react";
 import { CountdownTimer } from "@/components/countdown/countdown-timer";
 import { useTimeGate } from "@/lib/hooks/use-time-gate";
 import { formatNumber } from "@/lib/utils/format";
@@ -9,11 +9,12 @@ import type { TopPostAllTime } from "@/lib/types";
 
 interface LandingContentProps {
   isLoggedIn?: boolean;
+  isAdminOnly?: boolean;
   yesterdayTopPost?: TopPostAllTime | null;
   userCount?: number;
 }
 
-export function LandingContent({ isLoggedIn, yesterdayTopPost, userCount = 0 }: LandingContentProps) {
+export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, userCount = 0 }: LandingContentProps) {
   const { isOpen } = useTimeGate();
 
   return (
@@ -27,7 +28,7 @@ export function LandingContent({ isLoggedIn, yesterdayTopPost, userCount = 0 }: 
           <p className="text-xl text-muted-foreground sm:text-2xl">
             Social Media. 2 Stunden. Dann leb dein Leben.
           </p>
-          {userCount > 0 && (
+          {!isAdminOnly && userCount > 0 && (
             <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
               <span>{userCount} leute mit dabei</span>
@@ -35,8 +36,26 @@ export function LandingContent({ isLoggedIn, yesterdayTopPost, userCount = 0 }: 
           )}
         </div>
 
-        {/* State-dependent content */}
-        {isOpen ? (
+        {/* Admin-only mode */}
+        {isAdminOnly ? (
+          <div className="space-y-6">
+            <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-6">
+              <ShieldAlert className="mx-auto mb-3 h-8 w-8 text-orange-500" />
+              <p className="text-lg font-semibold text-orange-500">
+                Zugang eingeschränkt
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Diese Version ist aktuell nur für Admins zugänglich.
+              </p>
+            </div>
+            <Link
+              href="/auth/login"
+              className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-8 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Admin Login
+            </Link>
+          </div>
+        ) : isOpen ? (
           <div className="space-y-6">
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-6">
               <p className="text-lg font-semibold text-primary">

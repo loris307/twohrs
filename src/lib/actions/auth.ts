@@ -8,6 +8,10 @@ import { signUpSchema, signInSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
 export async function signUp(formData: FormData): Promise<ActionResult> {
+  if (process.env.ADMIN_ONLY_MODE === "true") {
+    return { success: false, error: "Registrierung ist aktuell deaktiviert" };
+  }
+
   const captchaToken = formData.get("captchaToken") as string | null;
 
   if (!captchaToken) {
@@ -141,6 +145,28 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
 
   if (error) {
     return { success: false, error: "Benutzername/E-Mail oder Passwort falsch" };
+  }
+
+  // In admin-only mode, check if user is admin — if not, sign them out
+  if (process.env.ADMIN_ONLY_MODE === "true") {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { createAdminClient } = await import("@/lib/supabase/admin");
+      const adminClient = createAdminClient();
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.is_admin) {
+        await supabase.auth.signOut();
+        return { success: false, error: "Zugang nur für Admins" };
+      }
+    }
   }
 
   redirect(isAppOpen() ? "/feed" : "/");
