@@ -11,9 +11,23 @@ export default async function LandingPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Only redirect to feed if logged in AND app is open
+  const adminOnly = process.env.ADMIN_ONLY_MODE === "true";
+
+  // In admin-only mode, only redirect admins to feed
   if (user && isAppOpen()) {
-    redirect("/feed");
+    if (adminOnly) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.is_admin) {
+        redirect("/feed");
+      }
+    } else {
+      redirect("/feed");
+    }
   }
 
   const [yesterdayTopPost, { count: userCount }] = await Promise.all([
@@ -21,5 +35,5 @@ export default async function LandingPage() {
     createAdminClient().from("profiles").select("*", { count: "exact", head: true }),
   ]);
 
-  return <LandingContent isLoggedIn={!!user} yesterdayTopPost={yesterdayTopPost} userCount={userCount ?? 0} />;
+  return <LandingContent isLoggedIn={!!user} isAdminOnly={adminOnly} yesterdayTopPost={yesterdayTopPost} userCount={userCount ?? 0} />;
 }

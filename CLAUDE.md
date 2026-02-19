@@ -255,6 +255,8 @@ The time window is configured at 3 levels:
 
 On the Preview deployment, env vars are set to `OPEN_HOUR=0, CLOSE_HOUR=24` so the app is always open for testing.
 
+**Admin-Only Mode:** Preview is restricted to admin accounts only via `ADMIN_ONLY_MODE=true` env var (set on Vercel preview). Non-admins can't log in, sign up, or access any authenticated routes. Enforced in middleware, signIn/signUp actions, and landing page. Admins: `loris_galler`, `loris`, `shevchyc`, `simon`.
+
 ## Supabase Clients
 
 There are 4 separate Supabase clients for different contexts:
