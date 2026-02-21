@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -65,6 +66,7 @@ export default function RootLayout({
           richColors
           closeButton
         />
+        <SpeedInsights />
       </body>
     </html>
   );

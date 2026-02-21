@@ -371,6 +371,35 @@ export default function DatenschutzPage() {
                 cloudflare.com/privacypolicy
               </a>
             </p>
+            <h3 className="mt-4 font-semibold text-foreground">
+              6.4 Vercel Speed Insights (Performance-Messung)
+            </h3>
+            <p>
+              <strong className="text-foreground">Anbieter:</strong> Vercel
+              Inc., San Francisco, USA
+              <br />
+              <strong className="text-foreground">Zweck:</strong> Messung der
+              Website-Performance (Core Web Vitals: Ladezeit, Interaktivität,
+              visuelle Stabilität)
+              <br />
+              <strong className="text-foreground">Verarbeitete Daten:</strong>{" "}
+              Anonyme Performance-Metriken (keine Cookies, kein Tracking
+              einzelner Nutzer, keine personenbezogenen Daten)
+              <br />
+              <strong className="text-foreground">Rechtsgrundlage:</strong>{" "}
+              Berechtigtes Interesse an der Optimierung der Website-Performance
+              (Art. 6 Abs. 1 lit. f DSGVO).
+              <br />
+              <strong className="text-foreground">Datenschutz:</strong>{" "}
+              <a
+                href="https://vercel.com/legal/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-4"
+              >
+                vercel.com/legal/privacy-policy
+              </a>
+            </p>
           </section>
 
           {/* 7. Speicherdauer */}
