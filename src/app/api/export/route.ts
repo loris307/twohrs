@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getVisibleAccountEmail,
+  isInternalAuthEmail,
+} from "@/lib/utils/auth-email";
 
 export async function GET() {
   const supabase = await createClient();
@@ -69,7 +73,8 @@ export async function GET() {
   const exportData = {
     exportedAt: new Date().toISOString(),
     auth: {
-      email: user.email,
+      email: getVisibleAccountEmail(user.email),
+      uses_internal_auth_email: isInternalAuthEmail(user.email),
       created_at: user.created_at,
     },
     profile: profileResult.data,

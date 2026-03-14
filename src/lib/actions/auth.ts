@@ -4,6 +4,10 @@ import { createHash } from "crypto";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAppOpen } from "@/lib/utils/time";
+import {
+  buildInternalAuthEmail,
+  normalizeAuthEmail,
+} from "@/lib/utils/auth-email";
 import { signUpSchema, signInSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
@@ -19,7 +23,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   }
 
   const rawData = {
-    email: formData.get("email") as string,
+    email: formData.get("email"),
     password: formData.get("password") as string,
     username: formData.get("username") as string,
     displayName: (formData.get("displayName") as string) || undefined,
@@ -34,9 +38,10 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   // Check if email is banned (hash comparison)
   const { createAdminClient } = await import("@/lib/supabase/admin");
   const adminClient = createAdminClient();
+  const authEmail = parsed.data.email ?? buildInternalAuthEmail(parsed.data.username);
 
   const emailHash = createHash("sha256")
-    .update(parsed.data.email.toLowerCase().trim())
+    .update(normalizeAuthEmail(authEmail))
     .digest("hex");
 
   const { data: banned } = await adminClient
@@ -63,7 +68,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   }
 
   const { error } = await supabase.auth.signUp({
-    email: parsed.data.email,
+    email: authEmail,
     password: parsed.data.password,
     options: {
       captchaToken,
@@ -107,11 +112,12 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   }
 
   const { identifier, password } = parsed.data;
+  const normalizedIdentifier = identifier.trim();
   let email: string;
 
-  if (identifier.includes("@")) {
+  if (normalizedIdentifier.includes("@")) {
     // Input is an email
-    email = identifier;
+    email = normalizeAuthEmail(normalizedIdentifier);
   } else {
     // Input is a username — look up the email
     const { createAdminClient } = await import("@/lib/supabase/admin");
@@ -120,16 +126,16 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
     const { data: profile } = await adminClient
       .from("profiles")
       .select("id")
-      .eq("username", identifier.toLowerCase())
+      .eq("username", normalizedIdentifier.toLowerCase())
       .single();
 
     if (!profile) {
-      return { success: false, error: "Benutzername/E-Mail oder Passwort falsch" };
+      return { success: false, error: "Benutzername oder Passwort falsch" };
     }
 
     const { data: authUser } = await adminClient.auth.admin.getUserById(profile.id);
     if (!authUser?.user?.email) {
-      return { success: false, error: "Benutzername/E-Mail oder Passwort falsch" };
+      return { success: false, error: "Benutzername oder Passwort falsch" };
     }
 
     email = authUser.user.email;
@@ -144,7 +150,7 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   });
 
   if (error) {
-    return { success: false, error: "Benutzername/E-Mail oder Passwort falsch" };
+    return { success: false, error: "Benutzername oder Passwort falsch" };
   }
 
   // In admin-only mode, check if user is admin — if not, sign them out

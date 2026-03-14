@@ -50,8 +50,8 @@ export default function ForgotPasswordPage() {
             Passwort vergessen
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Gib deine E-Mail-Adresse ein und wir schicken dir einen Link zum
-            Zurücksetzen
+            Dieser Reset funktioniert nur für Konten mit hinterlegter
+            E-Mail-Adresse.
           </p>
         </div>
 
@@ -73,6 +73,11 @@ export default function ForgotPasswordPage() {
         ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <p className="rounded-md border border-border bg-accent/50 p-3 text-sm text-muted-foreground">
+                Wenn du dich ohne sichtbare E-Mail registriert hast, gibt es
+                aktuell keinen E-Mail-Reset für dein Konto.
+              </p>
+
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">
                   E-Mail-Adresse

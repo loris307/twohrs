@@ -185,24 +185,13 @@ export default function SignupPage() {
           <p className="mt-2 text-muted-foreground">
             Werde Teil der twohrs-Community
           </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Keine E-Mail nötig. Merk dir dein Passwort gut, ein Reset geht
+            aktuell nur für Konten mit hinterlegter E-Mail.
+          </p>
         </div>
 
         <form onSubmit={handleFormSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              E-Mail
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="deine@email.de"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
-
           <div className="space-y-2">
             <label htmlFor="username" className="text-sm font-medium">
               Username

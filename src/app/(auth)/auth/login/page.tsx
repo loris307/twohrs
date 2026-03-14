@@ -57,15 +57,15 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="identifier" className="text-sm font-medium">
-              E-Mail oder Benutzername
+              Benutzername
             </label>
             <input
               id="identifier"
               name="identifier"
               type="text"
               required
-              autoComplete="username email"
-              placeholder="E-Mail oder Benutzername"
+              autoComplete="username"
+              placeholder="dein_username"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
@@ -79,7 +79,7 @@ export default function LoginPage() {
                 href="/auth/forgot-password"
                 className="text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
               >
-                Passwort vergessen?
+                Reset per E-Mail
               </Link>
             </div>
             <PasswordInput
