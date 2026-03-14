@@ -22,8 +22,9 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Captcha erforderlich" };
   }
 
+  const emailValue = formData.get("email");
   const rawData = {
-    email: formData.get("email"),
+    email: typeof emailValue === "string" ? emailValue : undefined,
     password: formData.get("password") as string,
     username: formData.get("username") as string,
     displayName: (formData.get("displayName") as string) || undefined,

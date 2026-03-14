@@ -40,6 +40,7 @@ const passwordSchema = z
 
 const optionalEmailSchema = z.preprocess(
   (value) => {
+    if (value == null) return undefined;
     if (typeof value !== "string") return value;
     const trimmed = value.trim().toLowerCase();
     return trimmed === "" ? undefined : trimmed;
