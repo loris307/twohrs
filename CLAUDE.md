@@ -123,7 +123,7 @@ src/
 └── middleware.ts           # Auth session refresh + time-gate routing
 
 supabase/
-├── migrations/            # SQL files (run in order, 001-031)
+├── migrations/            # SQL files (run in order, 001-037)
 ├── functions/             # Edge Functions (Deno runtime — excluded from tsconfig)
 └── seed.sql               # Initial app_config values
 ```
@@ -311,7 +311,7 @@ There are 4 separate Supabase clients for different contexts:
 
 ### Running Migrations
 
-Migrations are in `supabase/migrations/` and numbered sequentially (001-033). Use the Supabase CLI:
+Migrations are in `supabase/migrations/` and numbered sequentially (001-037). Use the Supabase CLI:
 
 ```bash
 # First-time setup (one-time):
@@ -328,7 +328,7 @@ supabase migration list                       # shows which migrations are appli
 supabase migration repair --status applied <version>   # e.g. "029"
 ```
 
-**Important:** The project uses a simple numeric naming scheme (`001`, `002`, ...) instead of Supabase's default timestamp format. The CLI handles this fine. When creating new migrations, continue the numbering sequence (next: `034`).
+**Important:** The project uses a simple numeric naming scheme (`001`, `002`, ...) instead of Supabase's default timestamp format. The CLI handles this fine. When creating new migrations, continue the numbering sequence (next: `038`).
 
 ### Supabase Edge Functions
 
@@ -428,8 +428,8 @@ Runs via **PostgreSQL pg_cron** extension (configured in migration 017, NOT Verc
 
 | Time (UTC) | pg_cron Function | What it does |
 |------------|------------------|-------------|
-| 22:25 | `archive_daily_leaderboard()` | Archives top 100 users to `daily_leaderboard`, increments winner's `days_won`, archives top post + comments to Hall of Fame |
-| 22:35 | `cleanup_daily_content()` | Deletes all mentions → post_hashtags → comment_votes → comments → votes → posts (FK order), then storage files |
+| 21:25 | `archive_daily_leaderboard()` | Archives top 100 users to `daily_leaderboard`, increments winner's `days_won`, archives top post + comments to Hall of Fame |
+| 21:35 | `cleanup_daily_content()` | Deletes all mentions → post_hashtags → comment_votes → comments → votes → posts (FK order), then storage files |
 
 The `/api/cron/*` endpoints still exist for manual invocation (POST only, require `Authorization: Bearer $CRON_SECRET` with timing-safe comparison), but they just call the database functions.
 

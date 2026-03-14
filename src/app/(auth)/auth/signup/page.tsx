@@ -20,6 +20,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState<FormData | null>(null);
   const [hasShared, setHasShared] = useState(false);
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
@@ -212,10 +213,13 @@ export default function SignupPage() {
               type="text"
               required
               autoComplete="username"
+              autoCapitalize="none"
               placeholder="dein_username"
               pattern="^[a-z0-9_]+$"
               minLength={3}
               maxLength={20}
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">

@@ -53,3 +53,6 @@ supabase/.temp/
 
 # security audit plans (private)
 /plans/
+
+# demo setup docs (contains credentials)
+docs/demo-db-setup.md
