@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getVisibleAccountEmail } from "@/lib/utils/auth-email";
 import { SettingsForm } from "./settings-form";
 
 export default async function SettingsPage() {
@@ -35,7 +36,7 @@ export default async function SettingsPage() {
         initialDisplayName={profile.display_name || ""}
         initialBio={profile.bio || ""}
         avatarUrl={profile.avatar_url}
-        userEmail={user.email || ""}
+        userEmail={getVisibleAccountEmail(user.email)}
         username={profile.username}
       />
     </div>

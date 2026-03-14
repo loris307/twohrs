@@ -117,10 +117,13 @@ export default function DatenschutzPage() {
             </h3>
             <p>Bei der Registrierung erheben wir:</p>
             <ul className="list-disc space-y-1 pl-6">
-              <li>E-Mail-Adresse (Pflichtfeld, zur Anmeldung und Passwort-Zurücksetzung)</li>
               <li>Benutzername (Pflichtfeld, öffentlich sichtbar)</li>
               <li>Anzeigename (optional, öffentlich sichtbar)</li>
               <li>Passwort (verschlüsselt gespeichert, niemals im Klartext)</li>
+              <li>
+                interne technische Auth-ID beziehungsweise bei älteren Konten
+                eine E-Mail-Adresse
+              </li>
             </ul>
             <p>Zusätzlich kannst du optional angeben:</p>
             <ul className="list-disc space-y-1 pl-6">
@@ -281,9 +284,10 @@ export default function DatenschutzPage() {
               (PostgreSQL), Benutzer-Authentifizierung, Dateispeicher für Bilder
               <br />
               <strong className="text-foreground">Verarbeitete Daten:</strong>{" "}
-              E-Mail-Adresse, Passwort (verschlüsselt), Profildaten, Posts,
-              Kommentare, Upvotes, Follows, hochgeladene Bilder, IP-Adresse,
-              User-Agent (in Audit-Logs)
+              Authentifizierungsdaten (Passwort, interne technische Auth-ID
+              beziehungsweise bei älteren Konten eine E-Mail-Adresse),
+              Profildaten, Posts, Kommentare, Upvotes, Follows, hochgeladene
+              Bilder, IP-Adresse, User-Agent (in Audit-Logs)
               <br />
               <strong className="text-foreground">Serverstandort:</strong>{" "}
               EU (Irland / AWS eu-west-1)
@@ -425,7 +429,10 @@ export default function DatenschutzPage() {
                     <td className="py-2">Täglich automatisch gelöscht</td>
                   </tr>
                   <tr>
-                    <td className="py-2 pr-4">Profildaten (Username, E-Mail, Bio, Avatar)</td>
+                    <td className="py-2 pr-4">
+                      Profildaten und Auth-Daten (Username, ggf. E-Mail oder
+                      interne Auth-ID, Bio, Avatar)
+                    </td>
                     <td className="py-2">Bis zur Account-Löschung</td>
                   </tr>
                   <tr>
@@ -611,8 +618,9 @@ export default function DatenschutzPage() {
               12. E-Mail-Kommunikation
             </h2>
             <p>
-              Wir senden ausschließlich transaktionale E-Mails, die für die
-              Nutzung des Dienstes notwendig sind:
+              Wir senden ausschließlich transaktionale E-Mails an Konten mit
+              hinterlegter E-Mail-Adresse. Für Konten ohne hinterlegte E-Mail
+              versenden wir keine E-Mails.
             </p>
             <ul className="list-disc space-y-1 pl-6">
               <li>Passwort-Zurücksetzung</li>

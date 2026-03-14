@@ -38,8 +38,18 @@ const passwordSchema = z
   .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten")
   .regex(/[^a-zA-Z0-9]/, "Passwort muss mindestens ein Sonderzeichen enthalten");
 
+const optionalEmailSchema = z.preprocess(
+  (value) => {
+    if (value == null) return undefined;
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim().toLowerCase();
+    return trimmed === "" ? undefined : trimmed;
+  },
+  z.string().email("Ungültige E-Mail-Adresse").optional()
+);
+
 export const signUpSchema = z.object({
-  email: z.string().email("Ungültige E-Mail-Adresse"),
+  email: optionalEmailSchema,
   password: passwordSchema,
   username: usernameSchema,
   displayName: z
@@ -52,7 +62,7 @@ export const signUpSchema = z.object({
 });
 
 export const signInSchema = z.object({
-  identifier: z.string().min(1, "E-Mail oder Benutzername ist erforderlich"),
+  identifier: z.string().min(1, "Benutzername ist erforderlich"),
   password: z.string().min(1, "Passwort ist erforderlich"),
 });
 

@@ -29,7 +29,7 @@ interface SettingsFormProps {
   initialDisplayName: string;
   initialBio: string;
   avatarUrl: string | null;
-  userEmail: string;
+  userEmail: string | null;
   username: string;
 }
 
@@ -284,11 +284,12 @@ export function SettingsForm({
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Konto</h2>
 
-        {/* Email (read-only) */}
-        <div className="space-y-1">
-          <p className="text-sm font-medium">E-Mail</p>
-          <p className="text-sm text-muted-foreground">{userEmail}</p>
-        </div>
+        {userEmail && (
+          <div className="space-y-1">
+            <p className="text-sm font-medium">E-Mail</p>
+            <p className="text-sm text-muted-foreground">{userEmail}</p>
+          </div>
+        )}
 
         {/* Password */}
         <div className="space-y-2">
