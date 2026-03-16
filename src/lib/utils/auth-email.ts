@@ -1,7 +1,16 @@
+import "server-only";
+import { createHash } from "crypto";
+
 const INTERNAL_AUTH_EMAIL_DOMAIN = "auth.twohrs.invalid";
 
 export function normalizeAuthEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+export function hashNormalizedAuthEmail(email: string): string {
+  return createHash("sha256")
+    .update(normalizeAuthEmail(email))
+    .digest("hex");
 }
 
 export function buildInternalAuthEmail(username: string): string {

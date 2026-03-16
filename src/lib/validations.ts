@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   MAX_CAPTION_LENGTH,
   MAX_COMMENT_LENGTH,
+  MAX_EMAIL_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
   ALLOWED_IMAGE_TYPES,
 } from "./constants";
@@ -38,18 +39,19 @@ const passwordSchema = z
   .regex(/[0-9]/, "Passwort muss mindestens eine Zahl enthalten")
   .regex(/[^a-zA-Z0-9]/, "Passwort muss mindestens ein Sonderzeichen enthalten");
 
-const optionalEmailSchema = z.preprocess(
-  (value) => {
-    if (value == null) return undefined;
-    if (typeof value !== "string") return value;
-    const trimmed = value.trim().toLowerCase();
-    return trimmed === "" ? undefined : trimmed;
-  },
-  z.string().email("Ungültige E-Mail-Adresse").optional()
-);
+export const requiredEmailSchema = z
+  .string({
+    required_error: "E-Mail-Adresse ist erforderlich",
+    invalid_type_error: "Ungültige E-Mail-Adresse",
+  })
+  .trim()
+  .toLowerCase()
+  .min(1, "E-Mail-Adresse ist erforderlich")
+  .max(MAX_EMAIL_LENGTH, `E-Mail-Adresse darf maximal ${MAX_EMAIL_LENGTH} Zeichen haben`)
+  .email("Ungültige E-Mail-Adresse");
 
 export const signUpSchema = z.object({
-  email: optionalEmailSchema,
+  email: requiredEmailSchema,
   password: passwordSchema,
   username: usernameSchema,
   displayName: z
@@ -62,7 +64,11 @@ export const signUpSchema = z.object({
 });
 
 export const signInSchema = z.object({
-  identifier: z.string().min(1, "Benutzername ist erforderlich"),
+  identifier: z
+    .string()
+    .trim()
+    .min(1, "Benutzername oder E-Mail ist erforderlich")
+    .max(MAX_EMAIL_LENGTH, `Benutzername oder E-Mail darf maximal ${MAX_EMAIL_LENGTH} Zeichen haben`),
   password: z.string().min(1, "Passwort ist erforderlich"),
 });
 

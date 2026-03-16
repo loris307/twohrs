@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NSFW_STRIKE_BAN_THRESHOLD } from "@/lib/constants";
+import { hashNormalizedAuthEmail } from "@/lib/utils/auth-email";
 
 export type StrikeResult = {
   newStrikes: number;
@@ -47,13 +48,9 @@ export async function addModerationStrike(
   if (newStrikes >= banThreshold) {
     const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
     if (authUser?.user?.email) {
-      const { createHash } = await import("crypto");
-      const emailHash = createHash("sha256")
-        .update(authUser.user.email.toLowerCase().trim())
-        .digest("hex");
       await adminClient
         .from("banned_email_hashes")
-        .upsert({ hash: emailHash });
+        .upsert({ hash: hashNormalizedAuthEmail(authUser.user.email) });
     }
 
     // Delete avatar files

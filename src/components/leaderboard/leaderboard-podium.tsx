@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/utils/format";
+import { profilePath } from "@/lib/utils/profile-path";
 import type { LeaderboardEntry } from "@/lib/types";
 
 interface LeaderboardPodiumProps {
@@ -28,7 +29,7 @@ export function LeaderboardPodium({ entries }: LeaderboardPodiumProps) {
           return (
             <Link
               key={entry.user_id}
-              href={`/profile/${entry.profiles.username}`}
+              href={profilePath(entry.profiles.username)}
               className="flex flex-col items-center gap-2"
             >
               <div

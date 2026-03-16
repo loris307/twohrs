@@ -1,19 +1,34 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 import { signIn } from "@/lib/actions/auth";
+import { MAX_EMAIL_LENGTH } from "@/lib/constants";
 import { PasswordInput } from "@/components/shared/password-input";
 
-export default function LoginPage() {
+function LoginPageInner({ error }: { error: string | null }) {
   const [isLoading, setIsLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
+  const shownErrorRef = useRef<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!error || shownErrorRef.current === error) return;
+
+    shownErrorRef.current = error;
+
+    if (error === "callback") {
+      toast.error("Google-Anmeldung fehlgeschlagen. Bitte versuche es erneut.");
+    } else if (error === "oauth_blocked") {
+      toast.error("Google-Registrierung ist gerade nicht möglich. Bitte nutze E-Mail oder versuche es später erneut.");
+    }
+  }, [error]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,10 +69,24 @@ export default function LoginPage() {
           </p>
         </div>
 
+        <div className="space-y-4">
+          <GoogleOAuthButton mode="signin" disabled={isLoading} />
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                oder
+              </span>
+            </div>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="identifier" className="text-sm font-medium">
-              Benutzername
+              Benutzername oder E-Mail
             </label>
             <input
               id="identifier"
@@ -65,7 +94,9 @@ export default function LoginPage() {
               type="text"
               required
               autoComplete="username"
-              placeholder="dein_username"
+              autoCapitalize="none"
+              maxLength={MAX_EMAIL_LENGTH}
+              placeholder="dein_username oder name@example.com"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
@@ -117,6 +148,26 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <p className="text-center text-xs text-muted-foreground">
+          Mit dem Fortfahren stimmst du den{" "}
+          <Link
+            href="/agb"
+            target="_blank"
+            className="text-primary underline underline-offset-4 hover:text-primary/80"
+          >
+            Nutzungsbedingungen
+          </Link>{" "}
+          und der{" "}
+          <Link
+            href="/datenschutz"
+            target="_blank"
+            className="text-primary underline underline-offset-4 hover:text-primary/80"
+          >
+            Datenschutzerklärung
+          </Link>{" "}
+          zu.
+        </p>
+
         <p className="text-center text-sm text-muted-foreground">
           Noch kein Konto?{" "}
           <Link
@@ -128,5 +179,22 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+function LoginPageContent() {
+  const searchParams = useSearchParams();
+  return <LoginPageInner error={searchParams.get("error")} />;
+}
+
+function LoginPageFallback() {
+  return <LoginPageInner error={null} />;
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

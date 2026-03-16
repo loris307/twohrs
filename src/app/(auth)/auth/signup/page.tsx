@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { Suspense, useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { UserPlus, Share2, ArrowRight } from "lucide-react";
+import { UserPlus, Share2, ArrowRight, Mail } from "lucide-react";
 import { toast } from "sonner";
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button";
 import { signUp } from "@/lib/actions/auth";
+import { MAX_EMAIL_LENGTH } from "@/lib/constants";
 import { PasswordRequirements } from "@/components/shared/password-requirements";
 import { PasswordInput } from "@/components/shared/password-input";
 
@@ -14,9 +16,9 @@ const SHARE_TEXT =
   "Ich bin gerade twohrs beigetreten — ein soziales Netzwerk, das nur 2 Stunden am Tag offen hat. Jeden Abend 20-22 Uhr. Bist du dabei?";
 const SHARE_URL = typeof window !== "undefined" ? window.location.origin : "https://twohrs.com";
 
-export default function SignupPage() {
+function SignupPageInner({ error }: { error: string | null }) {
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<"form" | "share">("form");
+  const [step, setStep] = useState<"form" | "share" | "verify">("form");
   const [formData, setFormData] = useState<FormData | null>(null);
   const [hasShared, setHasShared] = useState(false);
   const [password, setPassword] = useState("");
@@ -24,7 +26,17 @@ export default function SignupPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
-  const router = useRouter();
+  const shownErrorRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!error || shownErrorRef.current === error) return;
+
+    shownErrorRef.current = error;
+
+    if (error === "oauth_blocked") {
+      toast.error("Google-Registrierung ist gerade nicht möglich. Bitte nutze E-Mail oder versuche es später erneut.");
+    }
+  }, [error]);
 
   function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -57,8 +69,7 @@ export default function SignupPage() {
           turnstileRef.current?.reset();
           setCaptchaToken(null);
         } else {
-          toast.success("Willkommen bei twohrs!");
-          router.push("/");
+          setStep("verify");
         }
       } catch {
         toast.error("Ein Fehler ist aufgetreten");
@@ -107,8 +118,7 @@ export default function SignupPage() {
         setCaptchaToken(null);
         setStep("form");
       } else {
-        toast.success("Willkommen bei twohrs!");
-        router.push("/");
+        setStep("verify");
       }
     } catch {
       toast.error("Ein Fehler ist aufgetreten");
@@ -118,6 +128,38 @@ export default function SignupPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (step === "verify") {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="h-10 w-10 text-primary" />
+          </div>
+
+          <div className="space-y-3">
+            <h1 className="text-2xl font-bold tracking-tight">
+              Bestätigungs-E-Mail gesendet
+            </h1>
+            <p className="text-muted-foreground">
+              Wir haben dir eine E-Mail geschickt. Klicke den Link in der Mail,
+              um dein Konto zu aktivieren.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Schau auch im Spam-Ordner nach, falls du keine Mail findest.
+            </p>
+          </div>
+
+          <Link
+            href="/auth/login"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Zum Login
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (step === "share") {
@@ -186,9 +228,41 @@ export default function SignupPage() {
             Werde Teil der twohrs-Community
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Keine E-Mail nötig. Merk dir dein Passwort gut, ein Reset geht
-            aktuell nur für Konten mit hinterlegter E-Mail.
+            Du erhältst eine Bestätigungs-E-Mail nach der Registrierung.
           </p>
+        </div>
+
+        <div className="space-y-4">
+          <GoogleOAuthButton mode="signup" disabled={isLoading} />
+          <p className="text-center text-xs text-muted-foreground">
+            Mit dem Fortfahren stimmst du den{" "}
+            <Link
+              href="/agb"
+              target="_blank"
+              className="text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              Nutzungsbedingungen
+            </Link>{" "}
+            und der{" "}
+            <Link
+              href="/datenschutz"
+              target="_blank"
+              className="text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              Datenschutzerklärung
+            </Link>{" "}
+            zu.
+          </p>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                oder per E-Mail
+              </span>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -214,6 +288,23 @@ export default function SignupPage() {
             <p className="text-xs text-muted-foreground">
               Nur Kleinbuchstaben, Zahlen und Unterstriche (3-20 Zeichen)
             </p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              E-Mail
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              autoCapitalize="none"
+              maxLength={MAX_EMAIL_LENGTH}
+              placeholder="deine@email.de"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
 
           <div className="space-y-2">
@@ -314,5 +405,22 @@ export default function SignupPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+function SignupPageContent() {
+  const searchParams = useSearchParams();
+  return <SignupPageInner error={searchParams.get("error")} />;
+}
+
+function SignupPageFallback() {
+  return <SignupPageInner error={null} />;
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageContent />
+    </Suspense>
   );
 }

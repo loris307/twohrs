@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { profilePath } from "@/lib/utils/profile-path";
 import type { Profile } from "@/lib/types";
 
 interface FollowListProps {
@@ -19,7 +20,7 @@ export function FollowList({ users, emptyMessage }: FollowListProps) {
       {users.map((user) => (
         <Link
           key={user.id}
-          href={`/profile/${user.username}`}
+          href={profilePath(user.username)}
           className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-sm font-bold">

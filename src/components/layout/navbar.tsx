@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, Trophy, PlusSquare, User, Compass } from "lucide-react";
 import { SessionTimer } from "@/components/countdown/session-timer";
 import { cn } from "@/lib/utils/cn";
+import { profilePath } from "@/lib/utils/profile-path";
 
 const navItems = [
   { href: "/feed", label: "Feed", icon: Home },
@@ -51,7 +52,7 @@ export function Navbar({
           })}
           {username && (
             <Link
-              href={`/profile/${username}`}
+              href={profilePath(username)}
               className={cn(
                 "relative inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
                 pathname.startsWith("/profile/")

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { formatNumber } from "@/lib/utils/format";
+import { profilePath } from "@/lib/utils/profile-path";
 import type { LeaderboardEntry } from "@/lib/types";
 
 interface LeaderboardEntryRowProps {
@@ -11,7 +12,7 @@ interface LeaderboardEntryRowProps {
 export function LeaderboardEntryRow({ entry, rank }: LeaderboardEntryRowProps) {
   return (
     <Link
-      href={`/profile/${entry.profiles.username}`}
+      href={profilePath(entry.profiles.username)}
       className="flex items-center gap-4 rounded-md px-4 py-3 transition-colors hover:bg-accent"
     >
       <span className="w-8 text-center text-sm font-bold text-muted-foreground tabular-nums">

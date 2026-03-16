@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ArrowBigUp, Trash2 } from "lucide-react";
 import { toggleCommentVote, deleteComment } from "@/lib/actions/comments";
 import { formatRelativeTime, formatNumber } from "@/lib/utils/format";
+import { profilePath } from "@/lib/utils/profile-path";
 import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "sonner";
@@ -73,7 +74,7 @@ export function CommentCard({
     >
       {/* Avatar */}
       <Link
-        href={`/profile/${profile.username}`}
+        href={profilePath(profile.username)}
         className="shrink-0"
       >
         <div
@@ -105,7 +106,7 @@ export function CommentCard({
       <div className="min-w-0 flex-1">
         <p className={cn("break-words", isReply ? "text-xs" : "text-sm")}>
           <Link
-            href={`/profile/${profile.username}`}
+            href={profilePath(profile.username)}
             className="font-medium text-primary hover:underline"
           >
             {profile.username}

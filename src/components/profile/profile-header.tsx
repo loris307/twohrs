@@ -3,6 +3,10 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { FollowButton } from "./follow-button";
 import { formatNumber } from "@/lib/utils/format";
+import {
+  profileFollowersPath,
+  profileFollowingPath,
+} from "@/lib/utils/profile-path";
 import type { PublicProfile } from "@/lib/types";
 
 interface ProfileHeaderProps {
@@ -53,14 +57,14 @@ export function ProfileHeader({
 
           <div className="flex gap-4 text-sm">
             <Link
-              href={`/profile/${profile.username}/followers`}
+              href={profileFollowersPath(profile.username)}
               className="transition-colors hover:text-primary"
             >
               <strong>{formatNumber(followerCount)}</strong>{" "}
               <span className="text-muted-foreground">Follower</span>
             </Link>
             <Link
-              href={`/profile/${profile.username}/following`}
+              href={profileFollowingPath(profile.username)}
               className="transition-colors hover:text-primary"
             >
               <strong>{formatNumber(followingCount)}</strong>{" "}

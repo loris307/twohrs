@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Trophy, PlusSquare, User, Compass } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { profilePath } from "@/lib/utils/profile-path";
 
 export function BottomNav({
   username,
@@ -19,7 +20,7 @@ export function BottomNav({
     { href: "/leaderboard", label: "Ranking", icon: Trophy },
     { href: "/create", label: "Posten", icon: PlusSquare },
     {
-      href: username ? `/profile/${username}` : "/settings",
+      href: username ? profilePath(username) : "/settings",
       label: "Profil",
       icon: User,
       badge: mentionCount,

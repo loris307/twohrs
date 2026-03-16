@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getPrivateProfileById } from "@/lib/queries/private-profile";
 import type { PostWithAuthor } from "@/lib/types";
 
 export async function getMentionedPosts(
@@ -10,12 +11,7 @@ export async function getMentionedPosts(
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Get user's last_mentions_seen_at for unread tracking
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("last_mentions_seen_at")
-    .eq("id", userId)
-    .single();
+  const profile = await getPrivateProfileById(userId);
 
   const lastSeen = profile?.last_mentions_seen_at ?? new Date().toISOString();
 
@@ -104,11 +100,7 @@ export async function getMentionedPosts(
 export async function getUnreadMentionCount(userId: string): Promise<number> {
   const supabase = await createClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("last_mentions_seen_at")
-    .eq("id", userId)
-    .single();
+  const profile = await getPrivateProfileById(userId);
 
   if (!profile) return 0;
 

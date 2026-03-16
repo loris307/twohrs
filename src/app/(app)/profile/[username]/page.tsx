@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getProfile, getFollowCounts, isFollowing } from "@/lib/queries/profile";
 import { getPostsByUser } from "@/lib/queries/posts";
 import { getUnreadMentionCount } from "@/lib/queries/mentions";
+import { getPrivateProfileById } from "@/lib/queries/private-profile";
+import { decodeRouteSegment } from "@/lib/utils/route-segment";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileStats } from "@/components/profile/profile-stats";
 import { ProfileTabs } from "@/components/profile/profile-tabs";
@@ -13,8 +15,9 @@ export default async function ProfilePage({
   params: Promise<{ username: string }>;
 }) {
   const { username } = await params;
+  const decodedUsername = decodeRouteSegment(username);
 
-  const profile = await getProfile(username);
+  const profile = await getProfile(decodedUsername);
   if (!profile) {
     notFound();
   }
@@ -26,15 +29,8 @@ export default async function ProfilePage({
 
   const isOwnProfile = user?.id === profile.id;
 
-  let isAdmin = false;
-  if (user) {
-    const { data: currentUserProfile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-    isAdmin = currentUserProfile?.is_admin ?? false;
-  }
+  const currentUserProfile = user ? await getPrivateProfileById(user.id) : null;
+  const isAdmin = currentUserProfile?.is_admin ?? false;
 
   const [followCounts, following, posts, unreadMentionCount] = await Promise.all([
     getFollowCounts(profile.id),

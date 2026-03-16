@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowBigUp, MessageCircle } from "lucide-react";
 import { formatNumber } from "@/lib/utils/format";
+import { profilePath } from "@/lib/utils/profile-path";
 import type { TopPostAllTime } from "@/lib/types";
 
 interface TopPostCardProps {
@@ -26,7 +27,7 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
           #{rank}
         </span>
         <Link
-          href={`/profile/${profile.username}`}
+          href={profilePath(profile.username)}
           className="flex items-center gap-2 hover:opacity-80"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
@@ -73,7 +74,7 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
         {post.caption && (
           <p className="mt-2 text-sm">
             <Link
-              href={`/profile/${profile.username}`}
+              href={profilePath(profile.username)}
               className="font-medium hover:underline"
             >
               {profile.username}

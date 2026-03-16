@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -49,6 +50,8 @@ export function SettingsForm({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [pwCaptchaToken, setPwCaptchaToken] = useState<string | null>(null);
+  const pwTurnstileRef = useRef<TurnstileInstance | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -126,6 +129,9 @@ export function SettingsForm({
     setIsChangingPassword(true);
 
     const formData = new FormData(e.currentTarget);
+    if (pwCaptchaToken) {
+      formData.set("captchaToken", pwCaptchaToken);
+    }
     const result = await changePassword(formData);
 
     if (result.success) {
@@ -136,6 +142,8 @@ export function SettingsForm({
       toast.error(result.error);
     }
 
+    pwTurnstileRef.current?.reset();
+    setPwCaptchaToken(null);
     setIsChangingPassword(false);
   }
 
@@ -334,9 +342,18 @@ export function SettingsForm({
                 maxLength={72}
                 required
               />
+              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                <Turnstile
+                  ref={pwTurnstileRef}
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                  onSuccess={setPwCaptchaToken}
+                  onExpire={() => setPwCaptchaToken(null)}
+                  options={{ theme: "dark", size: "flexible" }}
+                />
+              )}
               <button
                 type="submit"
-                disabled={isChangingPassword}
+                disabled={isChangingPassword || (!pwCaptchaToken && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)}
                 className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {isChangingPassword

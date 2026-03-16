@@ -12,30 +12,21 @@ export function useUnreadMentions(userId: string, initialCount: number) {
     setCount(initialCount);
   }, [initialCount]);
 
-  // Re-sync by querying Supabase directly (no Vercel API call)
+  // Re-sync via a server route so private profile fields stay server-only
   const resync = useCallback(async () => {
     try {
-      const supabase = supabaseRef.current;
+      const response = await fetch("/api/mentions/unread-count", {
+        cache: "no-store",
+      });
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("last_mentions_seen_at")
-        .eq("id", userId)
-        .single();
+      if (!response.ok) return;
 
-      if (!profile) return;
-
-      const { count: freshCount } = await supabase
-        .from("mentions")
-        .select("*", { count: "exact", head: true })
-        .eq("mentioned_user_id", userId)
-        .gt("created_at", profile.last_mentions_seen_at);
-
-      setCount(freshCount ?? 0);
+      const data = (await response.json()) as { count?: number };
+      setCount(data.count ?? 0);
     } catch {
       // ignore
     }
-  }, [userId]);
+  }, []);
 
   // Subscribe to Realtime INSERT events on mentions table
   useEffect(() => {

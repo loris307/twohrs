@@ -3,6 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getFeedByHashtag, isHashtagFollowed } from "@/lib/queries/posts";
+import { getPrivateProfileById } from "@/lib/queries/private-profile";
+import { decodeRouteSegment } from "@/lib/utils/route-segment";
 import { HashtagFollowButton } from "@/components/shared/hashtag-follow-button";
 import { HashtagPostGrid } from "./hashtag-post-grid";
 
@@ -12,7 +14,7 @@ interface HashtagPageProps {
 
 export default async function HashtagPage({ params }: HashtagPageProps) {
   const { tag } = await params;
-  const decodedTag = decodeURIComponent(tag).toLowerCase();
+  const decodedTag = decodeRouteSegment(tag).toLowerCase();
 
   return (
     <div className="space-y-4">
@@ -41,15 +43,8 @@ async function HashtagContent({ tag }: { tag: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  let isAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user.id)
-      .single();
-    isAdmin = profile?.is_admin ?? false;
-  }
+  const profile = user ? await getPrivateProfileById(user.id) : null;
+  const isAdmin = profile?.is_admin ?? false;
 
   const [{ posts, nextCursor }, followed] = await Promise.all([
     getFeedByHashtag(tag),

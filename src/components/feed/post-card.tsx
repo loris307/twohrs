@@ -8,6 +8,7 @@ import { PostCardLink } from "./post-card-link";
 import { PostFollowButton } from "./post-follow-button";
 import { AdminDeleteButton } from "./admin-delete-button";
 import { formatRelativeTime } from "@/lib/utils/format";
+import { profilePath } from "@/lib/utils/profile-path";
 import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import type { PostWithAuthor } from "@/lib/types";
 
@@ -30,7 +31,7 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <Link
-          href={`/profile/${profile.username}`}
+          href={profilePath(profile.username)}
           className="flex items-center gap-3 hover:opacity-80"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-medium">

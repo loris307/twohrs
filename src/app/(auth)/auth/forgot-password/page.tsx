@@ -6,6 +6,8 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Mail } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { MAX_EMAIL_LENGTH } from "@/lib/constants";
+import { requiredEmailSchema } from "@/lib/validations";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -24,8 +26,15 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(true);
 
+    const parsedEmail = requiredEmailSchema.safeParse(email);
+    if (!parsedEmail.success) {
+      toast.error(parsedEmail.error.errors[0]?.message ?? "Ungültige E-Mail-Adresse");
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(parsedEmail.data, {
       redirectTo: `${window.location.origin}/auth/callback/reset`,
       captchaToken,
     });
@@ -88,6 +97,8 @@ export default function ForgotPasswordPage() {
                   type="email"
                   required
                   autoComplete="email"
+                  autoCapitalize="none"
+                  maxLength={MAX_EMAIL_LENGTH}
                   placeholder="deine@email.de"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

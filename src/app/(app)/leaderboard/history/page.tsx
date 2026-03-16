@@ -11,6 +11,7 @@ import {
   ArchiveTabs,
   type ArchiveTab,
 } from "@/components/leaderboard/archive-tabs";
+import { profilePath } from "@/lib/utils/profile-path";
 import type { TopWinner, TopFollowedProfile } from "@/lib/types";
 
 export default async function LeaderboardHistoryPage({
@@ -96,7 +97,7 @@ async function WinnersContent() {
 function WinnerRow({ winner, rank }: { winner: TopWinner; rank: number }) {
   return (
     <Link
-      href={`/profile/${winner.profiles.username}`}
+      href={profilePath(winner.profiles.username)}
       className="flex items-center gap-4 rounded-md px-4 py-3 transition-colors hover:bg-accent"
     >
       <span className="w-8 text-center text-sm font-bold text-muted-foreground tabular-nums">
@@ -177,7 +178,7 @@ function FollowerRow({
 }) {
   return (
     <Link
-      href={`/profile/${profile.profiles.username}`}
+      href={profilePath(profile.profiles.username)}
       className="flex items-center gap-4 rounded-md px-4 py-3 transition-colors hover:bg-accent"
     >
       <span className="w-8 text-center text-sm font-bold text-muted-foreground tabular-nums">

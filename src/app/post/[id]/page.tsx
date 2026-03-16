@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPostById } from "@/lib/queries/posts";
 import { getUnreadMentionCount } from "@/lib/queries/mentions";
+import { getPrivateProfileById } from "@/lib/queries/private-profile";
 import { PostCard } from "@/components/feed/post-card";
 import { PostComments } from "./post-comments";
 import { AppShell } from "@/app/(app)/app-shell";
@@ -164,14 +165,11 @@ export default async function PostPage({ params }: PostPageProps) {
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username, is_admin, moderation_strikes")
-    .eq("id", user.id)
-    .single();
-
+  const [profile, unreadMentionCount] = await Promise.all([
+    getPrivateProfileById(user.id),
+    getUnreadMentionCount(user.id),
+  ]);
   const isAdmin = profile?.is_admin ?? false;
-  const unreadMentionCount = await getUnreadMentionCount(user.id);
 
   return (
     <AppShell

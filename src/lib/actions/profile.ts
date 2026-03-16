@@ -204,10 +204,18 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
     return { success: false, error: parsed.error.errors[0].message };
   }
 
-  // Verify current password by attempting sign-in
-  const { error: signInError } = await supabase.auth.signInWithPassword({
+  // Verify current password using a standalone client with captcha token
+  const captchaToken = formData.get("captchaToken") as string | null;
+  const { createClient: createAnonClient } = await import("@supabase/supabase-js");
+  const verifyClient = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const { error: signInError } = await verifyClient.auth.signInWithPassword({
     email: user.email,
     password: parsed.data.currentPassword,
+    options: { captchaToken: captchaToken ?? undefined },
   });
 
   if (signInError) {

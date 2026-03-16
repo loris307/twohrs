@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { profilePath } from "@/lib/utils/profile-path";
 
 const MENTION_REGEX = /@([a-z0-9_]{3,20})\b/g;
 const URL_REGEX = /https?:\/\/[^\s<>)"]+/g;
@@ -58,7 +59,7 @@ export function renderTextWithMentions(text: string): React.ReactNode[] {
       parts.push(
         <Link
           key={`mention-${token.index}`}
-          href={`/profile/${token.value}`}
+          href={profilePath(token.value)}
           className="font-medium text-primary hover:underline"
         >
           @{token.value}

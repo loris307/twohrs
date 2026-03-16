@@ -9,6 +9,7 @@ export const MAX_POSTS_PER_SESSION = 100;
 export const MAX_COMMENTS_PER_SESSION = 100;
 export const MAX_CAPTION_LENGTH = 280;
 export const MAX_COMMENT_LENGTH = 500;
+export const MAX_EMAIL_LENGTH = 254;
 export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 export const MAX_AVATAR_SIZE_MB = 2;
