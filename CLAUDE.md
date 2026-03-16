@@ -227,6 +227,7 @@ Copy `.env.example` to `.env` and fill in:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon (public) key
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (secret, for admin/cron operations)
 - `CRON_SECRET` — Random secret for authenticating cron job endpoints
+- `BLOCKED_EMAIL_DOMAINS` — (optional) Additional comma-separated email domains to block at signup; keep the concrete list outside git, e.g. in local env vars or `config/disposable-email-domains.local.json`
 - `NEXT_PUBLIC_OPEN_HOUR` — (optional) Override app open hour (default: 20)
 - `NEXT_PUBLIC_CLOSE_HOUR` — (optional) Override app close hour (default: 22)
 

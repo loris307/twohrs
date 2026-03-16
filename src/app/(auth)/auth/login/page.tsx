@@ -25,6 +25,8 @@ function LoginPageInner({ error }: { error: string | null }) {
 
     if (error === "callback") {
       toast.error("Google-Anmeldung fehlgeschlagen. Bitte versuche es erneut.");
+    } else if (error === "disposable_email") {
+      toast.error("Temporäre oder Alias-E-Mail-Adressen sind für Registrierungen nicht erlaubt.");
     } else if (error === "oauth_blocked") {
       toast.error("Google-Registrierung ist gerade nicht möglich. Bitte nutze E-Mail oder versuche es später erneut.");
     }

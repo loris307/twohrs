@@ -33,7 +33,9 @@ function SignupPageInner({ error }: { error: string | null }) {
 
     shownErrorRef.current = error;
 
-    if (error === "oauth_blocked") {
+    if (error === "disposable_email") {
+      toast.error("Temporäre oder Alias-E-Mail-Adressen sind für Registrierungen nicht erlaubt.");
+    } else if (error === "oauth_blocked") {
       toast.error("Google-Registrierung ist gerade nicht möglich. Bitte nutze E-Mail oder versuche es später erneut.");
     }
   }, [error]);

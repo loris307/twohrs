@@ -32,6 +32,9 @@ yarn-error.log*
 .env
 .env*.local
 
+# local security config
+config/disposable-email-domains.local.json
+
 # vercel
 .vercel
 

@@ -26,9 +26,13 @@ function isFirstOAuthSignup(
   return Date.now() - createdAt < 10 * 60 * 1000 && Math.abs(lastSignInAt - createdAt) < 30 * 1000;
 }
 
-function blockedOauthRedirect(origin: string, mode: "signin" | "signup"): string {
+function blockedOauthRedirect(
+  origin: string,
+  mode: "signin" | "signup",
+  errorCode: "oauth_blocked" | "disposable_email" = "oauth_blocked"
+): string {
   const url = new URL(mode === "signup" ? "/auth/signup" : "/auth/login", origin);
-  url.searchParams.set("error", "oauth_blocked");
+  url.searchParams.set("error", errorCode);
   return url.toString();
 }
 
@@ -63,7 +67,13 @@ export async function GET(request: Request) {
               adminClient.auth.admin.deleteUser(user.id),
               supabase.auth.signOut(),
             ]);
-            return NextResponse.redirect(blockedOauthRedirect(origin, mode));
+            const errorCode =
+              guardResult.reason === "disposable_email"
+                ? "disposable_email"
+                : "oauth_blocked";
+            return NextResponse.redirect(
+              blockedOauthRedirect(origin, mode, errorCode)
+            );
           }
         }
 

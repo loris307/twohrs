@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { hashNormalizedAuthEmail } from "@/lib/utils/auth-email";
+import { isDisposableEmail } from "@/lib/utils/disposable-email";
 import { requiredEmailSchema } from "@/lib/validations";
 
 const DEFAULT_SIGNUP_RATE_LIMIT_MAX = 3;
@@ -11,7 +12,16 @@ const DEFAULT_SIGNUP_EMAIL_COOLDOWN_MS = 15 * 60 * 1000;
 
 export type SignupGuardResult =
   | { ok: true; email: string }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      reason:
+        | "invalid_email"
+        | "disposable_email"
+        | "signup_ip_rate_limited"
+        | "banned_email"
+        | "signup_email_cooldown";
+    };
 
 function readPositiveIntEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -33,10 +43,24 @@ export async function runSignupGuards(
 ): Promise<SignupGuardResult> {
   const parsedEmail = requiredEmailSchema.safeParse(email);
   if (!parsedEmail.success) {
-    return { ok: false, error: "Registrierung fehlgeschlagen" };
+    return {
+      ok: false,
+      error: "Registrierung fehlgeschlagen",
+      reason: "invalid_email",
+    };
   }
 
   const normalizedEmail = parsedEmail.data;
+
+  if (isDisposableEmail(normalizedEmail)) {
+    return {
+      ok: false,
+      error:
+        "Temporäre oder Alias-E-Mail-Adressen sind für Registrierungen nicht erlaubt. Bitte nutze eine normale E-Mail-Adresse.",
+      reason: "disposable_email",
+    };
+  }
+
   const emailHash = hashNormalizedAuthEmail(normalizedEmail);
   const clientIp = getClientIp(headersList);
 
@@ -52,6 +76,7 @@ export async function runSignupGuards(
   if (!signupIpLimit.allowed) {
     return {
       ok: false,
+      reason: "signup_ip_rate_limited",
       error:
         "Zu viele Registrierungen von dieser Verbindung. Bitte versuche es später erneut.",
     };
@@ -65,7 +90,11 @@ export async function runSignupGuards(
     .single();
 
   if (banned) {
-    return { ok: false, error: "Registrierung nicht möglich" };
+    return {
+      ok: false,
+      error: "Registrierung nicht möglich",
+      reason: "banned_email",
+    };
   }
 
   const signupEmailCooldown = checkRateLimit(
@@ -80,6 +109,7 @@ export async function runSignupGuards(
   if (!signupEmailCooldown.allowed) {
     return {
       ok: false,
+      reason: "signup_email_cooldown",
       error:
         "Für diese E-Mail wurde gerade bereits eine Registrierungsanfrage gestellt. Bitte prüfe dein Postfach und versuche es gleich erneut.",
     };
