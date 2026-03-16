@@ -8,6 +8,7 @@ import {
 } from "@/lib/validations";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB } from "@/lib/constants";
+import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/env";
 import type { ActionResult } from "@/lib/types";
 
 export async function updateProfile(formData: FormData): Promise<ActionResult> {
@@ -208,8 +209,8 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
   const captchaToken = formData.get("captchaToken") as string | null;
   const { createClient: createAnonClient } = await import("@supabase/supabase-js");
   const verifyClient = createAnonClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
   const { error: signInError } = await verifyClient.auth.signInWithPassword({

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseUrl } from "@/lib/supabase/env";
 
 export async function uploadImageWithProgress(
   file: File,
@@ -17,7 +18,7 @@ export async function uploadImageWithProgress(
   const fileExt = file.name.split(".").pop() || "jpg";
   const fileName = `${session.user.id}/${crypto.randomUUID()}.${fileExt}`;
 
-  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/memes/${fileName}`;
+  const url = `${getSupabaseUrl()}/storage/v1/object/memes/${fileName}`;
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
