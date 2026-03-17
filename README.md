@@ -209,14 +209,15 @@ Make sure to also update the `time_window` value in the `app_config` database ta
 
 ## Contributing
 
-Contributions are welcome. The project uses GitHub Actions CI to run linting and type-checking on pull requests.
+Contributions are welcome. The project uses GitHub Actions CI to run linting, type-checking, and production builds on pull requests.
 
 ```bash
-pnpm lint             # ESLint
-pnpm tsc --noEmit     # Type-check
+pnpm lint                  # ESLint
+pnpm typecheck             # Next route types + TypeScript
+pnpm build                 # Production build
 ```
 
-Please make sure both pass before submitting a PR.
+Please make sure all three pass before submitting a PR.
 
 ## License
 

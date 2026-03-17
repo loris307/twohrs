@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element, jsx-a11y/alt-text */
 import { ImageResponse } from "next/og";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -199,6 +198,7 @@ export default async function OgImage({
                 >
                   <img
                     src={imageDataUrl}
+                    alt=""
                     style={{
                       maxWidth: "100%",
                       maxHeight: 300,
