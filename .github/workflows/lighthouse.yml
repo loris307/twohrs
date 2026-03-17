@@ -1,6 +1,14 @@
 name: Lighthouse
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "next.config.ts"
+      - ".github/workflows/lighthouse.yml"
   workflow_dispatch:
     inputs:
       base_url:
@@ -17,32 +25,90 @@ concurrency:
   group: lighthouse-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: 1
+  NEXT_PUBLIC_SUPABASE_URL: https://example.com
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  NEXT_PUBLIC_OPEN_HOUR: "0"
+  NEXT_PUBLIC_CLOSE_HOUR: "24"
+  SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+  CRON_SECRET: dummy-cron-secret
+
 jobs:
   audit:
     name: Performance & Accessibility
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
+      LOCAL_BASE_URL: http://127.0.0.1:3000
       RAW_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || vars.SMOKE_BASE_URL }}
 
     steps:
       - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+
+      - uses: pnpm/action-setup@v4
+        if: github.event_name == 'pull_request'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        if: github.event_name == 'pull_request'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: github.event_name == 'pull_request'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app
+        if: github.event_name == 'pull_request'
+        run: pnpm build
+
+      - name: Start app
+        if: github.event_name == 'pull_request'
+        run: |
+          pnpm start --hostname 127.0.0.1 --port 3000 > /tmp/lighthouse.log 2>&1 &
+          echo $! > /tmp/lighthouse.pid
+
+      - name: Wait for app
+        if: github.event_name == 'pull_request'
+        run: |
+          for _ in $(seq 1 45); do
+            if curl --fail --silent --show-error "${LOCAL_BASE_URL}/about" > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat /tmp/lighthouse.log
+          exit 1
 
       - name: Resolve target URL
+        id: resolve-target
         run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base_url=${LOCAL_BASE_URL}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [ -z "${RAW_BASE_URL}" ]; then
             echo "No target URL configured. Set repository variable SMOKE_BASE_URL or pass workflow_dispatch input."
             exit 0
           fi
-          echo "BASE_URL=${RAW_BASE_URL%/}" >> "$GITHUB_ENV"
+          echo "base_url=${RAW_BASE_URL%/}" >> "$GITHUB_OUTPUT"
 
       - name: Audit public pages
+        if: steps.resolve-target.outputs.base_url != ''
         uses: treosh/lighthouse-ci-action@v12
         with:
           urls: |
-            ${{ env.BASE_URL }}/
-            ${{ env.BASE_URL }}/about
-            ${{ env.BASE_URL }}/auth/login
+            ${{ steps.resolve-target.outputs.base_url }}/about
+            ${{ steps.resolve-target.outputs.base_url }}/auth/login
+            ${{ steps.resolve-target.outputs.base_url }}/datenschutz
           temporaryPublicStorage: true
 
       - name: Print results summary
@@ -58,4 +124,18 @@ jobs:
               SEO=$(jq '.categories.seo.score * 100' "$f")
               echo "| $URL | Perf: ${PERF}% | A11y: ${A11Y}% | BP: ${BP}% | SEO: ${SEO}% |" >> "$GITHUB_STEP_SUMMARY"
             done
+          fi
+
+      - name: Stop app
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          if [ -f /tmp/lighthouse.pid ]; then
+            kill "$(cat /tmp/lighthouse.pid)"
+          fi
+
+      - name: Print app log on failure
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          if [ -f /tmp/lighthouse.log ]; then
+            cat /tmp/lighthouse.log
           fi

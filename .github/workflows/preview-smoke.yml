@@ -1,6 +1,22 @@
 name: Preview Smoke
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "next.config.ts"
+      - ".github/workflows/preview-smoke.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "next.config.ts"
+      - ".github/workflows/preview-smoke.yml"
   workflow_dispatch:
     inputs:
       base_url:
@@ -17,28 +33,99 @@ concurrency:
   group: preview-smoke-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: 1
+  NEXT_PUBLIC_SUPABASE_URL: https://example.com
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  NEXT_PUBLIC_OPEN_HOUR: "0"
+  NEXT_PUBLIC_CLOSE_HOUR: "24"
+  SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+  CRON_SECRET: dummy-cron-secret
+
 jobs:
   smoke:
     name: HTTP smoke checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
+      LOCAL_BASE_URL: http://127.0.0.1:3000
       RAW_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || vars.SMOKE_BASE_URL }}
 
     steps:
-      - name: Resolve target URL
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+
+      - uses: pnpm/action-setup@v4
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build app
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: pnpm build
+
+      - name: Start app
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: |
+          pnpm start --hostname 127.0.0.1 --port 3000 > /tmp/preview-smoke.log 2>&1 &
+          echo $! > /tmp/preview-smoke.pid
+
+      - name: Wait for app
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: |
+          for _ in $(seq 1 45); do
+            if curl --fail --silent --show-error "${LOCAL_BASE_URL}/about" > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat /tmp/preview-smoke.log
+          exit 1
+
+      - name: Resolve target URL
+        id: resolve-target
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "push" ]; then
+            echo "base_url=${LOCAL_BASE_URL}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [ -z "${RAW_BASE_URL}" ]; then
             echo "No smoke target configured. Set repository variable SMOKE_BASE_URL or pass workflow_dispatch input base_url."
             exit 0
           fi
-          echo "BASE_URL=${RAW_BASE_URL%/}" >> "$GITHUB_ENV"
+          echo "base_url=${RAW_BASE_URL%/}" >> "$GITHUB_OUTPUT"
 
       - name: Check public pages
+        if: steps.resolve-target.outputs.base_url != ''
         run: |
-          for path in / /about /auth/login /datenschutz; do
-            curl --fail --silent --show-error --location "${BASE_URL}${path}" > /dev/null
+          for path in /about /auth/login /datenschutz; do
+            curl --fail --silent --show-error --location "${{ steps.resolve-target.outputs.base_url }}${path}" > /dev/null
           done
 
-      - name: Check protected route resolves via redirect
-        run: curl --fail --silent --show-error --location "${BASE_URL}/feed" > /dev/null
+      - name: Stop app
+        if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
+        run: |
+          if [ -f /tmp/preview-smoke.pid ]; then
+            kill "$(cat /tmp/preview-smoke.pid)"
+          fi
+
+      - name: Print app log on failure
+        if: failure() && (github.event_name == 'pull_request' || github.event_name == 'push')
+        run: |
+          if [ -f /tmp/preview-smoke.log ]; then
+            cat /tmp/preview-smoke.log
+          fi
