@@ -1,0 +1,61 @@
+name: Lighthouse
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to audit, e.g. https://socialnetwork-dev.vercel.app"
+        required: false
+        type: string
+  schedule:
+    - cron: "30 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Performance & Accessibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RAW_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || vars.SMOKE_BASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target URL
+        run: |
+          if [ -z "${RAW_BASE_URL}" ]; then
+            echo "No target URL configured. Set repository variable SMOKE_BASE_URL or pass workflow_dispatch input."
+            exit 0
+          fi
+          echo "BASE_URL=${RAW_BASE_URL%/}" >> "$GITHUB_ENV"
+
+      - name: Audit public pages
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            ${{ env.BASE_URL }}/
+            ${{ env.BASE_URL }}/about
+            ${{ env.BASE_URL }}/auth/login
+          temporaryPublicStorage: true
+
+      - name: Print results summary
+        if: always()
+        run: |
+          if [ -d .lighthouseci ]; then
+            echo "## Lighthouse Results" >> "$GITHUB_STEP_SUMMARY"
+            for f in .lighthouseci/lhr-*.json; do
+              URL=$(jq -r '.finalUrl' "$f")
+              PERF=$(jq '.categories.performance.score * 100' "$f")
+              A11Y=$(jq '.categories.accessibility.score * 100' "$f")
+              BP=$(jq '.categories["best-practices"].score * 100' "$f")
+              SEO=$(jq '.categories.seo.score * 100' "$f")
+              echo "| $URL | Perf: ${PERF}% | A11y: ${A11Y}% | BP: ${BP}% | SEO: ${SEO}% |" >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
