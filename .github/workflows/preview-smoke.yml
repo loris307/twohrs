@@ -1,0 +1,44 @@
+name: Preview Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Optional base URL override, e.g. https://socialnetwork-dev.vercel.app"
+        required: false
+        type: string
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: HTTP smoke checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RAW_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || vars.SMOKE_BASE_URL }}
+
+    steps:
+      - name: Resolve target URL
+        run: |
+          if [ -z "${RAW_BASE_URL}" ]; then
+            echo "No smoke target configured. Set repository variable SMOKE_BASE_URL or pass workflow_dispatch input base_url."
+            exit 0
+          fi
+          echo "BASE_URL=${RAW_BASE_URL%/}" >> "$GITHUB_ENV"
+
+      - name: Check public pages
+        run: |
+          for path in / /about /auth/login /datenschutz; do
+            curl --fail --silent --show-error --location "${BASE_URL}${path}" > /dev/null
+          done
+
+      - name: Check protected route resolves via redirect
+        run: curl --fail --silent --show-error --location "${BASE_URL}/feed" > /dev/null

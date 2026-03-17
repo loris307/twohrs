@@ -1,0 +1,69 @@
+name: Supabase CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/supabase-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    name: Migrations, Seed, and Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Initialize local Supabase config
+        run: |
+          if [ ! -f supabase/config.toml ]; then
+            supabase init
+          fi
+
+      - name: Start local database
+        run: supabase db start
+
+      - name: Lint database schema
+        run: supabase db lint
+
+      - name: Generate schema types smoke check
+        run: |
+          supabase gen types typescript --local > /tmp/database.types.ts
+          test -s /tmp/database.types.ts
+
+      - name: Run pgTAP tests if present
+        run: |
+          if find supabase/tests -type f \( -name '*.sql' -o -name '*.pg' \) -print -quit >/dev/null 2>&1; then
+            supabase test db --local
+          else
+            echo "No pgTAP tests found; skipping."
+          fi
+
+      - name: Check Edge Function formatting
+        run: deno fmt --check supabase/functions
+
+      - name: Type-check Edge Functions
+        run: deno check supabase/functions/cleanup-storage/index.ts

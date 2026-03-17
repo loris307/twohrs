@@ -1,20 +1,39 @@
-name: CI
+name: App CI
 
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: 1
+  NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: ""
+  SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+  CRON_SECRET: dummy-cron-secret
 
 jobs:
-  lint-and-typecheck:
-    name: Lint & Type Check
+  app-checks:
+    name: Lint, Typecheck, and Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -24,7 +43,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm lint --max-warnings=0
 
       - name: Type Check
-        run: pnpm tsc --noEmit
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
