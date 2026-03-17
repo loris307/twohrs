@@ -333,8 +333,10 @@ function SignupPageInner({ error }: { error: string | null }) {
               name="password"
               required
               autoComplete="new-password"
+              passwordrules="minlength: 8; maxlength: 72; required: lower; required: upper; required: digit; required: special;"
               placeholder="Sicheres Passwort wählen"
               minLength={8}
+              maxLength={72}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

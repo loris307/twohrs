@@ -327,6 +327,8 @@ export function SettingsForm({
                 <PasswordInput
                   name="newPassword"
                   placeholder="Neues Passwort"
+                  autoComplete="new-password"
+                  passwordrules="minlength: 8; maxlength: 72; required: lower; required: upper; required: digit; required: special;"
                   minLength={8}
                   maxLength={72}
                   required
