@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { Clock, Flame, Trash2, Trophy, ArrowBigUp, MessageCircle, Users, Settings, ShieldAlert } from "lucide-react";
+import { LinkPreview } from "@/components/feed/link-preview";
 import { CountdownTimer } from "@/components/countdown/countdown-timer";
 import { useTimeGate } from "@/lib/hooks/use-time-gate";
 import { formatNumber } from "@/lib/utils/format";
+import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import type { TopPostAllTime } from "@/lib/types";
 
 interface LandingContentProps {
@@ -16,6 +18,10 @@ interface LandingContentProps {
 
 export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, userCount = 0 }: LandingContentProps) {
   const { isOpen } = useTimeGate();
+  const hasTopPostOgData = !!(
+    yesterdayTopPost?.og_url &&
+    (yesterdayTopPost.og_title || yesterdayTopPost.og_description || yesterdayTopPost.og_image)
+  );
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
@@ -170,11 +176,20 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
 
               {yesterdayTopPost.caption && (
                 <div className="px-4 py-2">
-                  <p className="text-sm">
+                  <p className="text-sm whitespace-pre-wrap break-words">
                     <span className="font-medium">{yesterdayTopPost.profiles.username}</span>{" "}
-                    {yesterdayTopPost.caption}
+                    {renderTextWithMentions(yesterdayTopPost.caption)}
                   </p>
                 </div>
+              )}
+
+              {hasTopPostOgData && (
+                <LinkPreview
+                  title={yesterdayTopPost.og_title}
+                  description={yesterdayTopPost.og_description}
+                  image={yesterdayTopPost.og_image}
+                  url={yesterdayTopPost.og_url!}
+                />
               )}
 
               {yesterdayTopPost.top_comments && yesterdayTopPost.top_comments.length > 0 && (
@@ -188,7 +203,9 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
                       <div key={i} className="flex items-start gap-2 text-sm">
                         <div className="min-w-0 flex-1">
                           <span className="font-medium">@{comment.username}</span>{" "}
-                          <span className="text-muted-foreground">{comment.text}</span>
+                          <span className="text-muted-foreground whitespace-pre-wrap break-words">
+                            {renderTextWithMentions(comment.text)}
+                          </span>
                         </div>
                         {comment.upvote_count > 0 && (
                           <span className="flex shrink-0 items-center gap-0.5 text-xs text-primary">
