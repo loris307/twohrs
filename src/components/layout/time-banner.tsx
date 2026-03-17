@@ -12,8 +12,8 @@ export function TimeBanner() {
   useEffect(() => {
     if (minutesRemaining <= 5 && minutesRemaining > 0 && !warned5min) {
       setWarned5min(true);
-      toast.warning("Noch 5 Minuten!", {
-        description: "Die Session endet bald.",
+      toast.warning("Gleich endet die Session!", {
+        description: "Sag allen gute Nacht!",
       });
     }
   }, [minutesRemaining, warned5min]);

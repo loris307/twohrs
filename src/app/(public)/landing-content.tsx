@@ -99,7 +99,7 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
             {isLoggedIn ? (
               <div className="space-y-3">
                 <p className="text-muted-foreground">
-                  Du bist eingeloggt. Komm heute Abend um 20:00 Uhr wieder!
+                  Du bist eingeloggt. Komm um 20:00 Uhr wieder!
                 </p>
                 <Link
                   href="/account"
