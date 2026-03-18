@@ -18,7 +18,12 @@ export default function ImpressumPage() {
       </Link>
 
       <div className="space-y-8">
-        <h1 className="text-4xl font-bold tracking-tight">Impressum</h1>
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">Impressum</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Stand: März 2026
+          </p>
+        </div>
 
         <div className="space-y-6 text-muted-foreground leading-relaxed">
           <section className="space-y-2">

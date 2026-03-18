@@ -23,7 +23,7 @@ export default function DatenschutzPage() {
             Datenschutzerklärung
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Stand: Februar 2026
+            Stand: März 2026
           </p>
         </div>
 
@@ -115,16 +115,32 @@ export default function DatenschutzPage() {
             <h3 className="font-semibold text-foreground">
               4.1 Registrierung und Profil
             </h3>
-            <p>Bei der Registrierung erheben wir:</p>
+            <p>
+              Du kannst dich bei twohrs auf zwei Wegen registrieren: per{" "}
+              <strong className="text-foreground">E-Mail und Passwort</strong>{" "}
+              oder per{" "}
+              <strong className="text-foreground">Google-Anmeldung (OAuth)</strong>.
+            </p>
+
+            <p>Bei der Registrierung per E-Mail und Passwort erheben wir:</p>
             <ul className="list-disc space-y-1 pl-6">
+              <li>E-Mail-Adresse (Pflichtfeld, wird per Bestätigungsmail verifiziert)</li>
               <li>Benutzername (Pflichtfeld, öffentlich sichtbar)</li>
               <li>Anzeigename (optional, öffentlich sichtbar)</li>
               <li>Passwort (verschlüsselt gespeichert, niemals im Klartext)</li>
-              <li>
-                interne technische Auth-ID beziehungsweise bei älteren Konten
-                eine E-Mail-Adresse
-              </li>
             </ul>
+
+            <p>Bei der Registrierung per Google OAuth erhalten wir von Google:</p>
+            <ul className="list-disc space-y-1 pl-6">
+              <li>E-Mail-Adresse (aus deinem Google-Konto)</li>
+              <li>Anzeigename (aus deinem Google-Profil, sofern vorhanden)</li>
+              <li>Profilbild (aus deinem Google-Profil, sofern vorhanden)</li>
+            </ul>
+            <p>
+              Du wirst anschließend aufgefordert, einen Benutzernamen zu wählen.
+              Ein Passwort wird bei der Google-Anmeldung nicht bei uns gespeichert.
+            </p>
+
             <p>Zusätzlich kannst du optional angeben:</p>
             <ul className="list-disc space-y-1 pl-6">
               <li>Profilbild (Avatar)</li>
@@ -214,6 +230,29 @@ export default function DatenschutzPage() {
               werden täglich gelöscht. Avatare werden bei Entfernung oder
               Account-Löschung gelöscht.
             </p>
+
+            <h3 className="mt-4 font-semibold text-foreground">
+              4.7 Accountsperren
+            </h3>
+            <p>
+              Wird ein Account aufgrund wiederholter Verstöße gegen die{" "}
+              <Link
+                href="/agb"
+                className="text-primary underline underline-offset-4"
+              >
+                Nutzungsbedingungen
+              </Link>{" "}
+              dauerhaft gesperrt und gelöscht, speichern wir einen
+              kryptografischen Hash (SHA-256) deiner E-Mail-Adresse. Dieser
+              Hash dient ausschließlich dazu, eine erneute Registrierung mit
+              derselben E-Mail-Adresse zu verhindern. Aus dem Hash kann die
+              ursprüngliche E-Mail-Adresse nicht wiederhergestellt werden.
+            </p>
+            <p>
+              <strong className="text-foreground">Rechtsgrundlage:</strong>{" "}
+              Berechtigtes Interesse an der Sicherheit der Plattform und dem
+              Schutz der Nutzergemeinschaft (Art. 6 Abs. 1 lit. f DSGVO).
+            </p>
           </section>
 
           {/* 5. Cookies */}
@@ -242,13 +281,13 @@ export default function DatenschutzPage() {
                   <tr>
                     <td className="py-2 pr-4 font-mono text-xs">sb-*-auth-token</td>
                     <td className="py-2 pr-4">Authentifizierungs-Session (Access- und Refresh-Token)</td>
-                    <td className="py-2 pr-4">Session</td>
+                    <td className="py-2 pr-4">Access Token: 1 Stunde, Refresh Token: 1 Woche</td>
                     <td className="py-2">Ja</td>
                   </tr>
                   <tr>
                     <td className="py-2 pr-4 font-mono text-xs">sb-*-auth-token-code-verifier</td>
                     <td className="py-2 pr-4">PKCE-Verifizierung bei der Anmeldung</td>
-                    <td className="py-2 pr-4">Session</td>
+                    <td className="py-2 pr-4">Bis zum Abschluss der Anmeldung</td>
                     <td className="py-2">Ja</td>
                   </tr>
                 </tbody>
@@ -284,10 +323,10 @@ export default function DatenschutzPage() {
               (PostgreSQL), Benutzer-Authentifizierung, Dateispeicher für Bilder
               <br />
               <strong className="text-foreground">Verarbeitete Daten:</strong>{" "}
-              Authentifizierungsdaten (Passwort, interne technische Auth-ID
-              beziehungsweise bei älteren Konten eine E-Mail-Adresse),
-              Profildaten, Posts, Kommentare, Upvotes, Follows, hochgeladene
-              Bilder, IP-Adresse, User-Agent (in Audit-Logs)
+              Authentifizierungsdaten (E-Mail-Adresse, Passwort bzw.
+              OAuth-Verbindung), Profildaten, Posts, Kommentare, Upvotes,
+              Follows, hochgeladene Bilder, IP-Adresse, User-Agent (in
+              Audit-Logs)
               <br />
               <strong className="text-foreground">Serverstandort:</strong>{" "}
               EU (Irland / AWS eu-west-1)
@@ -350,8 +389,8 @@ export default function DatenschutzPage() {
               Inc., San Francisco, USA
               <br />
               <strong className="text-foreground">Zweck:</strong> CAPTCHA-Schutz
-              bei Registrierung, Anmeldung und Passwort-Zurücksetzung zum
-              Schutz vor automatisierten Angriffen
+              bei Registrierung, Anmeldung, Passwort-Zurücksetzung und
+              Passwortänderung zum Schutz vor automatisierten Angriffen
               <br />
               <strong className="text-foreground">Verarbeitete Daten:</strong>{" "}
               IP-Adresse, Browser-Fingerprint, Verhaltensdaten
@@ -376,7 +415,48 @@ export default function DatenschutzPage() {
               </a>
             </p>
             <h3 className="mt-4 font-semibold text-foreground">
-              6.4 Vercel Speed Insights (Performance-Messung)
+              6.4 Google OAuth (Anmeldung)
+            </h3>
+            <p>
+              <strong className="text-foreground">Anbieter:</strong> Google
+              Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland
+              (Muttergesellschaft: Google LLC, USA)
+              <br />
+              <strong className="text-foreground">Zweck:</strong> Registrierung
+              und Anmeldung über dein Google-Konto (Single Sign-On)
+              <br />
+              <strong className="text-foreground">Verarbeitete Daten:</strong>{" "}
+              E-Mail-Adresse, Name, Profilbild (aus deinem Google-Konto),
+              OAuth-Token
+              <br />
+              <strong className="text-foreground">
+                Datenübermittlung in Drittländer:
+              </strong>{" "}
+              Google LLC ist unter dem EU-US Data Privacy Framework (DPF)
+              zertifiziert. Zusätzlich gelten EU-Standardvertragsklauseln (SCCs).
+              <br />
+              <strong className="text-foreground">Rechtsgrundlage:</strong>{" "}
+              Vertragserfüllung (Art. 6 Abs. 1 lit. b DSGVO) — die
+              Google-Anmeldung erfolgt nur auf deine ausdrückliche Initiative.
+              <br />
+              <strong className="text-foreground">Hinweis:</strong>{" "}
+              Die Google-Anmeldung ist optional. Du kannst dich auch per
+              E-Mail und Passwort registrieren, ohne dass Daten an Google
+              übermittelt werden.
+              <br />
+              <strong className="text-foreground">Datenschutz:</strong>{" "}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-4"
+              >
+                policies.google.com/privacy
+              </a>
+            </p>
+
+            <h3 className="mt-4 font-semibold text-foreground">
+              6.5 Vercel Speed Insights (Performance-Messung)
             </h3>
             <p>
               <strong className="text-foreground">Anbieter:</strong> Vercel
@@ -430,8 +510,7 @@ export default function DatenschutzPage() {
                   </tr>
                   <tr>
                     <td className="py-2 pr-4">
-                      Profildaten und Auth-Daten (Username, ggf. E-Mail oder
-                      interne Auth-ID, Bio, Avatar)
+                      Profildaten und Auth-Daten (E-Mail, Username, Bio, Avatar)
                     </td>
                     <td className="py-2">Bis zur Account-Löschung</td>
                   </tr>
@@ -450,6 +529,14 @@ export default function DatenschutzPage() {
                   <tr>
                     <td className="py-2 pr-4">Authentifizierungs-Audit-Logs (IP, User-Agent)</td>
                     <td className="py-2">Gemäß Supabase-Aufbewahrungsrichtlinie</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-4">
+                      Gesperrte Accounts (kryptografischer Hash der E-Mail-Adresse)
+                    </td>
+                    <td className="py-2">
+                      Dauerhaft (zur Verhinderung erneuter Registrierung)
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -503,6 +590,12 @@ export default function DatenschutzPage() {
               Die Löschung erfolgt unmittelbar und ist unwiderruflich. Du
               findest die Löschfunktion in den Einstellungen unter &bdquo;Account
               löschen&ldquo;.
+            </p>
+            <p>
+              <strong className="text-foreground">Ausnahme:</strong> Wurde dein
+              Account aufgrund wiederholter Verstöße gesperrt, bleibt ein
+              kryptografischer Hash deiner E-Mail-Adresse gespeichert, um eine
+              erneute Registrierung zu verhindern (siehe Abschnitt 4.7).
             </p>
 
             <h3 className="font-semibold text-foreground">
@@ -618,13 +711,12 @@ export default function DatenschutzPage() {
               12. E-Mail-Kommunikation
             </h2>
             <p>
-              Wir senden ausschließlich transaktionale E-Mails an Konten mit
-              hinterlegter E-Mail-Adresse. Für Konten ohne hinterlegte E-Mail
-              versenden wir keine E-Mails.
+              Wir senden ausschließlich transaktionale E-Mails an deine bei der
+              Registrierung angegebene E-Mail-Adresse:
             </p>
             <ul className="list-disc space-y-1 pl-6">
               <li>Passwort-Zurücksetzung</li>
-              <li>E-Mail-Bestätigung (sofern aktiviert)</li>
+              <li>E-Mail-Bestätigung bei Registrierung</li>
             </ul>
             <p>
               Wir versenden keine Werbe-E-Mails oder Newsletter. Die E-Mails
