@@ -38,9 +38,9 @@ export async function checkPostContent(
           type: "nsfw_image",
         };
       }
-    } catch {
+    } catch (error) {
       // Fail-closed: if NSFW check fails, reject the post
-      console.error("NSFW classification failed, rejecting as safety fallback");
+      console.error("NSFW classification failed, rejecting as safety fallback", error);
       return {
         allowed: false,
         reason: "Bild konnte nicht überprüft werden",

@@ -83,7 +83,7 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
 
   try {
     const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
-    cleanBuffer = await stripExifMetadata(rawBuffer, avatarFile.type);
+    cleanBuffer = await stripExifMetadata(rawBuffer, detectedMime);
   } catch (error) {
     console.error("Avatar preprocessing failed:", error);
     return {
