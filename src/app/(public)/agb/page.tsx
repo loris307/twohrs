@@ -23,7 +23,7 @@ export default function AGBPage() {
             Nutzungsbedingungen
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Stand: Februar 2026
+            Stand: März 2026
           </p>
         </div>
 
@@ -45,6 +45,8 @@ export default function AGBPage() {
               Ludwig-Erhard-Str. 18
               <br />
               20459 Hamburg
+              <br />
+              Deutschland
               <br />
               E-Mail: lorisgaller.business@gmail.com
             </p>
@@ -118,16 +120,53 @@ export default function AGBPage() {
             </p>
 
             <h3 className="font-semibold text-foreground">
-              3.2 Accountdaten
+              3.2 Registrierungsmethoden
+            </h3>
+            <p>
+              Du kannst dich auf zwei Wegen registrieren:
+            </p>
+            <ul className="list-disc space-y-1 pl-6">
+              <li>
+                <strong className="text-foreground">E-Mail und Passwort:</strong>{" "}
+                Du gibst eine gültige E-Mail-Adresse, einen Benutzernamen und
+                ein Passwort an. Deine E-Mail-Adresse muss per
+                Bestätigungsmail verifiziert werden.
+              </li>
+              <li>
+                <strong className="text-foreground">Google-Anmeldung:</strong>{" "}
+                Du meldest dich über dein Google-Konto an und wählst
+                anschließend einen Benutzernamen.
+              </li>
+            </ul>
+
+            <h3 className="font-semibold text-foreground">
+              3.3 Accountdaten
             </h3>
             <p>
               Du bist verpflichtet, bei der Registrierung wahrheitsgemäße
-              Angaben zu machen. Dein Passwort ist vertraulich zu behandeln.
-              Du bist für alle Aktivitäten unter deinem Account verantwortlich.
+              Angaben zu machen. Falls du ein Passwort verwendest, ist dieses
+              vertraulich zu behandeln. Du bist für alle Aktivitäten unter
+              deinem Account verantwortlich.
             </p>
 
             <h3 className="font-semibold text-foreground">
-              3.3 Account-Löschung
+              3.4 Datenexport
+            </h3>
+            <p>
+              Du kannst jederzeit eine Kopie deiner gespeicherten Daten in den
+              Einstellungen herunterladen (JSON-Format). Weitere Informationen
+              findest du in unserer{" "}
+              <Link
+                href="/datenschutz"
+                className="text-primary underline underline-offset-4"
+              >
+                Datenschutzerklärung
+              </Link>
+              .
+            </p>
+
+            <h3 className="font-semibold text-foreground">
+              3.5 Account-Löschung
             </h3>
             <p>
               Du kannst deinen Account jederzeit löschen — auch außerhalb der
