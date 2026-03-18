@@ -8,6 +8,7 @@ import { isAppOpen } from "@/lib/utils/time";
 import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH } from "@/lib/constants";
 import { extractMentions } from "@/lib/utils/mentions";
 import { extractHashtags } from "@/lib/utils/hashtags";
+import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
@@ -58,7 +59,8 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
 
   // Get image from formData
   const imageFile = formData.get("image") as File | null;
-  const caption = (formData.get("caption") as string) || null;
+  const rawCaption = (formData.get("caption") as string) || null;
+  const caption = rawCaption ? normalizeText(rawCaption) : null;
   const hasImage = imageFile && imageFile.size > 0;
 
   if (!hasImage && !caption?.trim()) {
@@ -192,12 +194,14 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
 
 export async function createPostRecord(
   imagePath: string | null,
-  caption: string | null,
+  rawCaption: string | null,
   ogData?: { ogTitle?: string; ogDescription?: string; ogImage?: string; ogUrl?: string }
 ): Promise<ActionResult> {
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
+
+  const caption = rawCaption ? normalizeText(rawCaption) : null;
 
   // At least caption or image required
   if (!imagePath && !caption?.trim()) {
