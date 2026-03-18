@@ -95,7 +95,7 @@ const CHAR_MAP_REGEX = new RegExp(
   "g",
 );
 
-const URL_REGEX = /https?:\/\/[^\s<>)"]+/g;
+const URL_REGEX = /https?:\/\/[^\s<>)"]+/gi;
 // Combining marks commonly used in European languages (diacritics).
 // Only these are preserved; everything else (zalgo stacking) is stripped.
 const ALLOWED_COMBINING_MARKS = new Set([
