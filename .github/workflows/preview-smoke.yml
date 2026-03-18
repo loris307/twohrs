@@ -54,7 +54,7 @@ jobs:
       RAW_BASE_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url || vars.SMOKE_BASE_URL }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.event_name == 'pull_request' || github.event_name == 'push'
 
       - uses: pnpm/action-setup@v4
