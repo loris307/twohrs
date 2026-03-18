@@ -1,10 +1,9 @@
-import { classifyImage } from "./nsfw";
 import { findBlockedDomainInText } from "./blocked-domains";
 
 export type ContentCheckResult = {
   allowed: boolean;
   reason: string | null;
-  type: "nsfw_image" | "blocked_domain" | null;
+  type: "nsfw_image" | "image_check_failed" | "blocked_domain" | null;
 };
 
 /**
@@ -30,6 +29,7 @@ export async function checkPostContent(
   // 2. Check image for NSFW content (only if there's an image)
   if (imageBuffer) {
     try {
+      const { classifyImage } = await import("./nsfw");
       const result = await classifyImage(imageBuffer);
       if (result.isNsfw) {
         return {
@@ -44,7 +44,7 @@ export async function checkPostContent(
       return {
         allowed: false,
         reason: "Bild konnte nicht überprüft werden",
-        type: "nsfw_image",
+        type: "image_check_failed",
       };
     }
   }

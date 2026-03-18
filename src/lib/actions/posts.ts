@@ -89,28 +89,40 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     // Strip EXIF metadata (GPS, camera info) before upload
-    const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
-    cleanBuffer = await stripExifMetadata(Buffer.from(imageBuffer), detectedMime);
+    try {
+      const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
+      cleanBuffer = await stripExifMetadata(Buffer.from(imageBuffer), detectedMime);
+    } catch (error) {
+      console.error("Image preprocessing failed during post creation:", error);
+      return {
+        success: false,
+        error: "Bildverarbeitung ist gerade nicht verfügbar. Bitte versuche es erneut.",
+      };
+    }
   }
 
   const { checkPostContent } = await import("@/lib/moderation/check-content");
   const contentCheck = await checkPostContent(cleanBuffer, caption);
 
   if (!contentCheck.allowed) {
-    const { addModerationStrike } = await import("@/lib/moderation/strikes");
-    const strikeOptions = contentCheck.type === "nsfw_image"
-      ? { column: "nsfw_strikes" as const }
-      : undefined;
-    const { accountDeleted } = await addModerationStrike(user.id, strikeOptions);
+    if (contentCheck.type !== "image_check_failed") {
+      const { addModerationStrike } = await import("@/lib/moderation/strikes");
+      const strikeOptions = contentCheck.type === "nsfw_image"
+        ? { column: "nsfw_strikes" as const }
+        : undefined;
+      const { accountDeleted } = await addModerationStrike(user.id, strikeOptions);
 
-    if (accountDeleted) {
-      return { success: false, error: "Dein Account wurde gesperrt." };
+      if (accountDeleted) {
+        return { success: false, error: "Dein Account wurde gesperrt." };
+      }
     }
 
     return {
       success: false,
       error: contentCheck.type === "blocked_domain"
         ? "Dieser Link ist nicht erlaubt."
+        : contentCheck.type === "image_check_failed"
+          ? "Bild konnte nicht überprüft werden. Bitte versuche es erneut."
         : "Dieses Bild verstößt gegen unsere Richtlinien.",
     };
   }
@@ -279,21 +291,25 @@ export async function createPostRecord(
       await supabase.storage.from("memes").remove([ownedImagePath]);
     }
 
-    // Add strike: domain violations use admin strikes (3), NSFW uses separate counter (100)
-    const { addModerationStrike } = await import("@/lib/moderation/strikes");
-    const strikeOptions = contentCheck.type === "nsfw_image"
-      ? { column: "nsfw_strikes" as const }
-      : undefined;
-    const { accountDeleted } = await addModerationStrike(user.id, strikeOptions);
+    if (contentCheck.type !== "image_check_failed") {
+      // Add strike: domain violations use admin strikes (3), NSFW uses separate counter (100)
+      const { addModerationStrike } = await import("@/lib/moderation/strikes");
+      const strikeOptions = contentCheck.type === "nsfw_image"
+        ? { column: "nsfw_strikes" as const }
+        : undefined;
+      const { accountDeleted } = await addModerationStrike(user.id, strikeOptions);
 
-    if (accountDeleted) {
-      return { success: false, error: "Dein Account wurde gesperrt." };
+      if (accountDeleted) {
+        return { success: false, error: "Dein Account wurde gesperrt." };
+      }
     }
 
     return {
       success: false,
       error: contentCheck.type === "blocked_domain"
         ? "Dieser Link ist nicht erlaubt."
+        : contentCheck.type === "image_check_failed"
+          ? "Bild konnte nicht überprüft werden. Bitte versuche es erneut."
         : "Dieses Bild verstößt gegen unsere Richtlinien.",
     };
   }
