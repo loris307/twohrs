@@ -1,6 +1,5 @@
 import * as tf from "@tensorflow/tfjs";
 import * as nsfwjs from "nsfwjs";
-import sharp from "sharp";
 import { NSFW_THRESHOLDS } from "@/lib/constants";
 
 // Singleton model reference
@@ -27,6 +26,7 @@ export type NsfwResult = {
  */
 export async function classifyImage(imageBuffer: Buffer): Promise<NsfwResult> {
   const model = await getModel();
+  const { default: sharp } = await import("sharp");
 
   // Decode any format, strip alpha, resize to 224x224, get raw RGB pixels
   const { data, info } = await sharp(imageBuffer)

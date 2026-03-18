@@ -27,8 +27,21 @@ pnpm typecheck        # full type-check (next typegen + tsc --noEmit)
 
 Deploy:
 ```bash
-vercel --yes --prod                                            # production → twohrs.com
 vercel --yes && vercel alias <url> socialnetwork-dev.vercel.app  # preview → dev alias
+vercel promote <deployment-id-or-url> --yes                      # promote tested preview → production aliases
+vercel rollback <deployment-id-or-url> --yes                     # rollback production quickly if needed
+```
+
+Release workflow:
+```bash
+# 1) deploy preview from current branch
+vercel --yes
+vercel alias <preview-url> socialnetwork-dev.vercel.app
+
+# 2) test on preview
+
+# 3) promote the tested preview release to production
+vercel promote <preview-deployment-id-or-url> --yes
 ```
 
 Database (Supabase CLI):
@@ -45,6 +58,7 @@ supabase migration repair --status applied <version>  # mark migration as alread
 ### Always (do without asking)
 - Use **"twohrs"** as the brand name everywhere (lowercase, one word). Never use "2Hours", "2 Hours", or "2hours".
 - Use `pnpm`, never `npm` or `yarn`
+- Release via preview first, then `vercel promote` the tested deployment to production
 - Check `isAppOpen()` in every new server action before writes
 - Check auth (`supabase.auth.getUser()`) in every new server action
 - Validate input with Zod schemas from `validations.ts`
@@ -74,7 +88,7 @@ supabase migration repair --status applied <version>  # mark migration as alread
 - Bypass time-gate enforcement without explicit approval
 - Delete persistent tables (`profiles`, `follows`, `daily_leaderboard`, etc.)
 - Force push to main
-- Deploy to production (`vercel --yes --prod`) from any branch other than `main`
+- Do not use `vercel --yes --prod` for normal releases. Always promote a tested preview deployment instead.
 - Connect Vercel to GitHub (deploys are manual via CLI)
 - Push secrets, Supabase URLs/keys, or credentials to the public repo
 

@@ -78,9 +78,19 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
   }
 
   // Strip EXIF metadata (GPS, camera info) before upload
-  const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
   const rawBuffer = Buffer.from(avatarBuffer);
-  const cleanBuffer = await stripExifMetadata(rawBuffer, avatarFile.type);
+  let cleanBuffer: Buffer;
+
+  try {
+    const { stripExifMetadata } = await import("@/lib/utils/strip-exif");
+    cleanBuffer = await stripExifMetadata(rawBuffer, detectedMime);
+  } catch (error) {
+    console.error("Avatar preprocessing failed:", error);
+    return {
+      success: false,
+      error: "Bildverarbeitung ist gerade nicht verfügbar. Bitte versuche es erneut.",
+    };
+  }
 
   // NSFW check (fail-closed: reject on error)
   try {
