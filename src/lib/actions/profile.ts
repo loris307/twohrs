@@ -6,6 +6,7 @@ import {
   updateProfileSchema,
   changePasswordSchema,
 } from "@/lib/validations";
+import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB } from "@/lib/constants";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/public-env";
@@ -22,9 +23,12 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Nicht eingeloggt" };
   }
 
+  const rawDisplayName = (formData.get("displayName") as string) || undefined;
+  const rawBio = (formData.get("bio") as string) || undefined;
+
   const rawData = {
-    displayName: (formData.get("displayName") as string) || undefined,
-    bio: (formData.get("bio") as string) || undefined,
+    displayName: rawDisplayName ? normalizeText(rawDisplayName) : undefined,
+    bio: rawBio ? normalizeText(rawBio) : undefined,
   };
 
   const parsed = updateProfileSchema.safeParse(rawData);

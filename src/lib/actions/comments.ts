@@ -7,11 +7,12 @@ import { isAppOpen } from "@/lib/utils/time";
 import { MAX_COMMENTS_PER_SESSION } from "@/lib/constants";
 import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
+import { normalizeText } from "@/lib/utils/normalize-text";
 import type { ActionResult } from "@/lib/types";
 
 export async function createComment(
   postId: string,
-  text: string,
+  rawText: string,
   parentCommentId?: string
 ): Promise<ActionResult<{ id: string }>> {
   if (!uuidSchema.safeParse(postId).success) {
@@ -24,6 +25,8 @@ export async function createComment(
   if (!isAppOpen()) {
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
+
+  const text = normalizeText(rawText);
 
   const supabase = await createClient();
 
