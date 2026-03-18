@@ -95,6 +95,7 @@ const CHAR_MAP_REGEX = new RegExp(
   "g",
 );
 
+const URL_REGEX = /https?:\/\/[^\s<>)"]+/g;
 // Combining marks commonly used in European languages (diacritics).
 // Only these are preserved; everything else (zalgo stacking) is stripped.
 const ALLOWED_COMBINING_MARKS = new Set([
@@ -173,6 +174,34 @@ function cleanCombiningMarks(text: string): string {
  * 5. Lowercase conversion — final safety net.
  */
 export function normalizeText(text: string): string {
+  const matches = Array.from(text.matchAll(URL_REGEX));
+  if (matches.length === 0) {
+    return normalizeTextSegment(text);
+  }
+
+  let result = "";
+  let lastIndex = 0;
+
+  for (const match of matches) {
+    const index = match.index!;
+    const url = match[0];
+
+    if (index > lastIndex) {
+      result += normalizeTextSegment(text.slice(lastIndex, index));
+    }
+
+    result += url;
+    lastIndex = index + url.length;
+  }
+
+  if (lastIndex < text.length) {
+    result += normalizeTextSegment(text.slice(lastIndex));
+  }
+
+  return result;
+}
+
+function normalizeTextSegment(text: string): string {
   let result = text;
 
   // Step 1 — NFKD decomposition

@@ -148,6 +148,11 @@ describe("normalizeText", () => {
     );
   });
 
+  it("preserves case-sensitive URL parts", () => {
+    expect(normalizeText("Check https://Example.com/Foo?token=AbC")).toBe(
+      "check https://Example.com/Foo?token=AbC",
+    );
+  });
   it("preserves emoji", () => {
     expect(normalizeText("hello 🎉🔥")).toBe("hello 🎉🔥");
   });
@@ -162,6 +167,11 @@ describe("normalizeText", () => {
     expect(normalizeText("ʜᴇʏ @loris #ᴛᴇꜱᴛ")).toBe("hey @loris #test");
   });
 
+  it("normalises fancy text around URLs without changing the URL", () => {
+    expect(normalizeText("𝐇𝐞𝐲 https://Example.com/Foo ᴡᴏᴡ")).toBe(
+      "hey https://Example.com/Foo wow",
+    );
+  });
   // ── Edge cases ──────────────────────────────────────────────────
 
   it("handles legitimate single combining mark (accented chars)", () => {
