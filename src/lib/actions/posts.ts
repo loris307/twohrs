@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
-import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH } from "@/lib/constants";
+import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH, MAX_AUDIO_SIZE_BYTES } from "@/lib/constants";
 import { extractMentions } from "@/lib/utils/mentions";
 import { extractHashtags } from "@/lib/utils/hashtags";
 import { normalizeText } from "@/lib/utils/normalize-text";
@@ -382,7 +382,6 @@ export async function createPostRecord(
 
 export async function createAudioPostRecord(
   audioPath: string,
-  audioUrl: string,
   audioMimeType: string,
   audioDurationMs: number,
   rawCaption: string
@@ -403,9 +402,14 @@ export async function createAudioPostRecord(
 
   const caption = normalizeText(rawCaption);
 
+  // Audio posts require a non-whitespace caption
+  if (!caption.trim()) {
+    return { success: false, error: "Caption ist erforderlich für Audio-Posts" };
+  }
+
   // Validate input
   const parsed = createAudioPostSchema.safeParse({
-    caption,
+    caption: caption.trim(),
     audioPath,
     audioDurationMs,
     audioMimeType,
@@ -461,6 +465,19 @@ export async function createAudioPostRecord(
     await supabase.storage.from("audio-posts").remove([normalizedAudioPath]);
     return { success: false, error: "Ungültiges Audio-Format" };
   }
+
+  // Server-side size guard: 10s of audio at any reasonable bitrate fits well under
+  // MAX_AUDIO_SIZE_BYTES (2MB). The bucket enforces 2MB on upload, but we re-check
+  // here in case the bucket limit is raised later. True container-level duration
+  // parsing (WebM/OGG/MP4) would require ffprobe or a container parser — not added
+  // in v1 because the 2MB ceiling makes >60s recordings impractical even at low bitrates.
+  if (storedArrayBuffer.byteLength > MAX_AUDIO_SIZE_BYTES) {
+    await supabase.storage.from("audio-posts").remove([normalizedAudioPath]);
+    return { success: false, error: "Audio-Datei ist zu groß" };
+  }
+
+  // Derive public URL server-side (never trust client-supplied URL)
+  const audioUrl = supabase.storage.from("audio-posts").getPublicUrl(normalizedAudioPath).data.publicUrl;
 
   // Content moderation on caption (no auto-moderation for audio content in v1)
   const { checkPostContent } = await import("@/lib/moderation/check-content");

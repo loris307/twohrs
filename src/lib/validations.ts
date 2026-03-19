@@ -113,6 +113,7 @@ export const changePasswordSchema = z
 export const createAudioPostSchema = z.object({
   caption: z
     .string()
+    .trim()
     .min(1, "Caption ist erforderlich für Audio-Posts")
     .max(MAX_CAPTION_LENGTH, `Caption darf maximal ${MAX_CAPTION_LENGTH} Zeichen haben`),
   audioPath: z.string().min(1, "Audio-Datei ist erforderlich"),

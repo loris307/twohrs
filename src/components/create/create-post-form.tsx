@@ -158,7 +158,6 @@ export function CreatePostForm() {
 
         const result = await createAudioPostRecord(
           uploaded.audioPath,
-          uploaded.audioUrl,
           uploaded.audioMimeType,
           recordedDurationMs,
           caption
