@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Clock, Flame, Trash2, Trophy, ArrowBigUp, MessageCircle, Users, Settings, ShieldAlert } from "lucide-react";
 import { LinkPreview } from "@/components/feed/link-preview";
+import { AudioPlayer } from "@/components/shared/audio-player";
 import { CountdownTimer } from "@/components/countdown/countdown-timer";
 import { useTimeGate } from "@/lib/hooks/use-time-gate";
 import { formatNumber } from "@/lib/utils/format";
@@ -164,7 +165,9 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
                 </span>
               </div>
 
-              {yesterdayTopPost.image_url && (
+              {yesterdayTopPost.audio_url ? (
+                <AudioPlayer src={yesterdayTopPost.audio_url} durationMs={yesterdayTopPost.audio_duration_ms} />
+              ) : yesterdayTopPost.image_url ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={yesterdayTopPost.image_url}
@@ -172,7 +175,7 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
                   className="w-full object-contain"
                   style={{ maxHeight: "400px" }}
                 />
-              )}
+              ) : null}
 
               {yesterdayTopPost.caption && (
                 <div className="px-4 py-2">

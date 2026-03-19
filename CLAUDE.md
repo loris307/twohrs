@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A social network that's only open a few hours per day (currently 20:00-22:00 CET, configurable via env vars). Users post memes (image + caption), text-only posts, or links with OG previews. They upvote posts and comments, and a daily leaderboard crowns the funniest person. Content is cleaned up daily. Every day starts fresh. The Hall of Fame preserves the best post of each day with its top comments.
+A social network that's only open a few hours per day (currently 20:00-22:00 CET, configurable via env vars). Users post memes (image + caption), text-only posts, links with OG previews, or audio posts (in-app recorded, max 10s, caption required). They upvote posts and comments, and a daily leaderboard crowns the funniest person. Content is cleaned up daily. Every day starts fresh. The Hall of Fame preserves the best post of each day with its top comments.
 
 ## Tech Stack
 
@@ -109,7 +109,7 @@ src/
 │   ├── create/            # Image upload, create post form, OG preview
 │   ├── leaderboard/       # Podium, entry row, table, top post card, archive-tabs
 │   ├── profile/           # Profile header, stats, follow button, profile-tabs, mentions-list
-│   ├── shared/            # Reusable components (mention-autocomplete)
+│   ├── shared/            # Reusable components (mention-autocomplete, audio-player)
 │   └── countdown/         # Countdown timer, session timer, session-ended modal
 ├── lib/
 │   ├── supabase/          # Supabase clients (client, server, middleware, admin) + env helpers
@@ -209,7 +209,7 @@ Time window configured via env vars → `constants.ts` fallbacks → `app_config
 
 ### Key Columns
 
-**posts:** `image_url` and `image_path` are **nullable** (text-only posts). Has `og_title`, `og_description`, `og_image`, `og_url` for link previews. Has `comment_count` (denormalized). Constraint: at least `image_url` or `caption` must be non-null.
+**posts:** `image_url` and `image_path` are **nullable** (text-only posts). Has `og_title`, `og_description`, `og_image`, `og_url` for link previews. Has `audio_url`, `audio_path`, `audio_duration_ms`, `audio_mime_type` for audio posts. Has `comment_count` (denormalized). Constraint: at least `image_url`, `caption`, or `audio_url` must be non-null; audio posts always require a caption.
 
 **comments:** `text` (max 500 chars), `upvote_count` (denormalized via trigger), `parent_comment_id` (nullable, one-level replies), sorted by upvotes in UI.
 
@@ -230,13 +230,13 @@ Time window configured via env vars → `constants.ts` fallbacks → `app_config
 
 ### Migrations
 
-Numbered sequentially in `supabase/migrations/` (001-043, next: 044). Simple numeric scheme, not Supabase timestamps. Push with `supabase db push`.
+Numbered sequentially in `supabase/migrations/` (001-044, next: 045). Simple numeric scheme, not Supabase timestamps. Push with `supabase db push`.
 
 One Edge Function: `supabase/functions/cleanup-storage/` (Deno runtime, excluded from tsconfig).
 
 ## Features
 
-- **Post types:** Image + caption, text-only, link with OG preview (fetched server-side via `/api/og`)
+- **Post types:** Image + caption, text-only, link with OG preview (fetched server-side via `/api/og`), audio (in-app recorded only, max 10s, caption required, manual moderation in v1)
 - **Comments:** Collapsible, upvotable, one-level replies, max 500 chars, @mentions extracted
 - **@Mentions:** Autocomplete on `@`, Realtime WebSocket for unread badge, rendered as profile links
 - **Hashtags:** Extracted from captions, clickable links, followable, searchable via `/search`
@@ -308,7 +308,7 @@ vercel alias <new-preview-url> socialnetwork-dev.vercel.app
 ### Supabase
 
 - **Redirect URLs:** Both `twohrs.com/**` and `socialnetwork-dev.vercel.app/**` in Supabase Auth config
-- **Storage buckets:** `memes` (public, 5MB) and `avatars` (public, 2MB)
+- **Storage buckets:** `memes` (public, 5MB), `avatars` (public, 2MB), and `audio-posts` (public, 2MB, allowed: webm/ogg/mp4)
 
 ### Production Checklist
 

@@ -40,7 +40,7 @@ export async function adminDeletePost(
   // Get the post
   const { data: post } = await adminClient
     .from("posts")
-    .select("id, user_id, image_path")
+    .select("id, user_id, image_path, audio_path")
     .eq("id", postId)
     .single();
 
@@ -64,9 +64,12 @@ export async function adminDeletePost(
     return { success: false, error: "User nicht gefunden" };
   }
 
-  // Delete storage file if image exists
+  // Delete storage files
   if (post.image_path) {
     await adminClient.storage.from("memes").remove([post.image_path]);
+  }
+  if (post.audio_path) {
+    await adminClient.storage.from("audio-posts").remove([post.audio_path]);
   }
 
   // Delete the post

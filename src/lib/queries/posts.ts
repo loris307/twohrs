@@ -16,6 +16,10 @@ export const POST_WITH_AUTHOR_SELECT = `
   og_description,
   og_image,
   og_url,
+  audio_url,
+  audio_path,
+  audio_duration_ms,
+  audio_mime_type,
   profiles!posts_user_id_fkey (username, display_name, avatar_url)
 `;
 

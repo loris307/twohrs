@@ -14,6 +14,10 @@ export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 export const MAX_AVATAR_SIZE_MB = 2;
 export const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
+export const MAX_AUDIO_DURATION_MS = 10_000;
+export const MAX_AUDIO_SIZE_MB = 2;
+export const MAX_AUDIO_SIZE_BYTES = MAX_AUDIO_SIZE_MB * 1024 * 1024;
+export const ALLOWED_RECORDED_AUDIO_TYPES = ["audio/webm", "audio/ogg", "audio/mp4"] as const;
 
 export const ALLOWED_IMAGE_TYPES = [
   "image/jpeg",

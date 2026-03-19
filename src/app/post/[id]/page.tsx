@@ -26,7 +26,7 @@ export async function generateMetadata({
   const supabase = createAdminClient();
   const { data: post } = await supabase
     .from("posts")
-    .select("caption, image_url")
+    .select("caption, image_url, audio_url")
     .eq("id", id)
     .single();
 

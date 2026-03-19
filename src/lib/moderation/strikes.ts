@@ -75,6 +75,39 @@ export async function addModerationStrike(
         .remove(memeFiles.map((f) => `${userId}/${f.name}`));
     }
 
+    // Delete audio files
+    const { data: audioFiles } = await adminClient.storage
+      .from("audio-posts")
+      .list(userId);
+
+    if (audioFiles && audioFiles.length > 0) {
+      await adminClient.storage
+        .from("audio-posts")
+        .remove(audioFiles.map((f) => `${userId}/${f.name}`));
+    }
+
+    // Delete Hall of Fame storage files (before cascade deletes the rows)
+    const { data: hallOfFameEntries } = await adminClient
+      .from("top_posts_all_time")
+      .select("image_path, audio_path")
+      .eq("user_id", userId);
+
+    if (hallOfFameEntries && hallOfFameEntries.length > 0) {
+      const hofImagePaths = hallOfFameEntries
+        .map((e) => e.image_path)
+        .filter((p): p is string => p != null);
+      if (hofImagePaths.length > 0) {
+        await adminClient.storage.from("memes").remove(hofImagePaths);
+      }
+
+      const hofAudioPaths = hallOfFameEntries
+        .map((e) => e.audio_path)
+        .filter((p): p is string => p != null);
+      if (hofAudioPaths.length > 0) {
+        await adminClient.storage.from("audio-posts").remove(hofAudioPaths);
+      }
+    }
+
     // Delete auth user (cascades to profiles -> everything)
     await adminClient.auth.admin.deleteUser(userId);
     accountDeleted = true;

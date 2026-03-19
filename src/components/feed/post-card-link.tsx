@@ -37,7 +37,7 @@ export function PostCardLink({ postId, children }: PostCardLinkProps) {
   function handleClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
     // Don't interfere with interactive elements
-    if (target.closest("a, button, input, textarea, [role='button']")) {
+    if (target.closest("a, button, input, textarea, audio, [role='button'], [data-post-card-interactive]")) {
       return;
     }
 
