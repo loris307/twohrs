@@ -32,10 +32,11 @@ The app opens at a set time each evening and closes after 2 hours. A countdown t
 ### Daily Reset
 At midnight, a PostgreSQL cron job wipes all posts, comments, votes, mentions, and uploaded images. Only persistent data survives: user profiles, follow relationships, the leaderboard archive, and the Hall of Fame.
 
-### Three Post Types
+### Four Post Types
 - **Image + Caption** -- Upload a meme with an optional caption
 - **Text-only** -- Just words, no image required
 - **Link with Preview** -- Paste a URL and get an automatic Open Graph preview (title, description, thumbnail)
+- **Audio** -- Record up to 10 seconds of audio directly in the app (caption required). Plays in the feed, post detail, landing page, and Hall of Fame. Cross-browser: Chrome, Firefox, Safari/iPhone.
 
 ### Feed
 Three tabs to browse content:

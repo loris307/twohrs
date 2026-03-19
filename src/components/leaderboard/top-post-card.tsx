@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowBigUp, MessageCircle } from "lucide-react";
+import { AudioPlayer } from "@/components/shared/audio-player";
 import { formatNumber } from "@/lib/utils/format";
 import { profilePath } from "@/lib/utils/profile-path";
 import type { TopPostAllTime } from "@/lib/types";
@@ -52,7 +53,9 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
         </span>
       </div>
 
-      {post.image_url && (
+      {post.audio_url ? (
+        <AudioPlayer src={post.audio_url} durationMs={post.audio_duration_ms} />
+      ) : post.image_url ? (
         <div className="relative w-full">
           <Image
             src={post.image_url}
@@ -64,7 +67,7 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
             unoptimized={isGif}
           />
         </div>
-      )}
+      ) : null}
 
       <div className="px-4 py-3">
         <div className="inline-flex items-center gap-1.5 text-sm font-medium text-primary">

@@ -5,12 +5,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
-import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH } from "@/lib/constants";
+import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH, MAX_AUDIO_SIZE_BYTES } from "@/lib/constants";
 import { extractMentions } from "@/lib/utils/mentions";
 import { extractHashtags } from "@/lib/utils/hashtags";
 import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
-import { uuidSchema } from "@/lib/validations";
+import { detectAudioMime } from "@/lib/utils/audio-magic-bytes";
+import { uuidSchema, createAudioPostSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
 
 function isOwnedStoragePath(path: string, userId: string): boolean {
@@ -379,6 +380,186 @@ export async function createPostRecord(
   return { success: true };
 }
 
+export async function createAudioPostRecord(
+  audioPath: string,
+  audioMimeType: string,
+  audioDurationMs: number,
+  rawCaption: string
+): Promise<ActionResult> {
+  if (!isAppOpen()) {
+    return { success: false, error: "Die App ist gerade geschlossen" };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  const caption = rawCaption ? normalizeText(rawCaption) : null;
+
+  // Validate input
+  const parsed = createAudioPostSchema.safeParse({
+    caption: caption?.trim() || undefined,
+    audioPath,
+    audioDurationMs,
+    audioMimeType,
+  });
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  // Rate limit check (Berlin timezone to align with session window)
+  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  const startOfDay = new Date(berlinNow);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const { count } = await supabase
+    .from("posts")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("created_at", startOfDay.toISOString());
+
+  if ((count ?? 0) >= MAX_POSTS_PER_SESSION) {
+    return {
+      success: false,
+      error: `Maximal ${MAX_POSTS_PER_SESSION} Posts pro Tag erlaubt`,
+    };
+  }
+
+  if (caption && caption.length > MAX_CAPTION_LENGTH) {
+    return {
+      success: false,
+      error: `Caption darf maximal ${MAX_CAPTION_LENGTH} Zeichen haben`,
+    };
+  }
+
+  // Verify owned storage path
+  const normalizedAudioPath = audioPath.replace(/^\/+/, "");
+  if (!isOwnedStoragePath(normalizedAudioPath, user.id)) {
+    return { success: false, error: "Ungültiger Audio-Pfad" };
+  }
+
+  // Download and validate audio file signature
+  const { data: storedAudio, error: downloadError } = await supabase.storage
+    .from("audio-posts")
+    .download(normalizedAudioPath);
+
+  if (downloadError || !storedAudio) {
+    console.error("Stored audio download failed:", downloadError?.message);
+    return { success: false, error: "Audio konnte nicht geladen werden" };
+  }
+
+  const storedArrayBuffer = await storedAudio.arrayBuffer();
+  if (!detectAudioMime(storedArrayBuffer)) {
+    await supabase.storage.from("audio-posts").remove([normalizedAudioPath]);
+    return { success: false, error: "Ungültiges Audio-Format" };
+  }
+
+  // Server-side size guard: 10s of audio at any reasonable bitrate fits well under
+  // MAX_AUDIO_SIZE_BYTES (2MB). The bucket enforces 2MB on upload, but we re-check
+  // here in case the bucket limit is raised later. True container-level duration
+  // parsing (WebM/OGG/MP4) would require ffprobe or a container parser — not added
+  // in v1 because the 2MB ceiling makes >60s recordings impractical even at low bitrates.
+  if (storedArrayBuffer.byteLength > MAX_AUDIO_SIZE_BYTES) {
+    await supabase.storage.from("audio-posts").remove([normalizedAudioPath]);
+    return { success: false, error: "Audio-Datei ist zu groß" };
+  }
+
+  // Derive public URL server-side (never trust client-supplied URL)
+  const audioUrl = supabase.storage.from("audio-posts").getPublicUrl(normalizedAudioPath).data.publicUrl;
+
+  // Content moderation on caption (no auto-moderation for audio content in v1)
+  const { checkPostContent } = await import("@/lib/moderation/check-content");
+  const contentCheck = await checkPostContent(null, caption);
+
+  if (!contentCheck.allowed) {
+    await supabase.storage.from("audio-posts").remove([normalizedAudioPath]);
+
+    if (contentCheck.type !== "image_check_failed") {
+      const { addModerationStrike } = await import("@/lib/moderation/strikes");
+      const strikeOptions = contentCheck.type === "nsfw_image"
+        ? { column: "nsfw_strikes" as const }
+        : undefined;
+      const { accountDeleted } = await addModerationStrike(user.id, strikeOptions);
+
+      if (accountDeleted) {
+        return { success: false, error: "Dein Account wurde gesperrt." };
+      }
+    }
+
+    return {
+      success: false,
+      error: contentCheck.type === "blocked_domain"
+        ? "Dieser Link ist nicht erlaubt."
+        : "Dieses Bild verstößt gegen unsere Richtlinien.",
+    };
+  }
+
+  // Insert post
+  const { data: newPost, error: insertError } = await supabase
+    .from("posts")
+    .insert({
+      user_id: user.id,
+      caption,
+      audio_url: audioUrl,
+      audio_path: normalizedAudioPath,
+      audio_duration_ms: audioDurationMs,
+      audio_mime_type: audioMimeType,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !newPost) {
+    console.error("Audio post insert failed:", insertError?.message);
+    // Cleanup uploaded audio on failure
+    await supabase.storage.from("audio-posts").remove([normalizedAudioPath]);
+    return { success: false, error: "Post konnte nicht erstellt werden" };
+  }
+
+  // Extract and store @mentions (admin client bypasses RLS)
+  if (caption) {
+    const usernames = extractMentions(caption);
+    if (usernames.length > 0) {
+      const admin = createAdminClient();
+      const { data: mentionedUsers } = await admin
+        .from("profiles")
+        .select("id, username")
+        .in("username", usernames.slice(0, 10));
+
+      if (mentionedUsers && mentionedUsers.length > 0) {
+        const mentionRows = mentionedUsers.map((u) => ({
+          mentioned_user_id: u.id,
+          mentioning_user_id: user.id,
+          post_id: newPost.id,
+        }));
+
+        await admin.from("mentions").insert(mentionRows);
+      }
+    }
+
+    // Extract and store #hashtags
+    const hashtags = extractHashtags(caption);
+    if (hashtags.length > 0) {
+      const adminForTags = createAdminClient();
+      await adminForTags.from("post_hashtags").insert(
+        hashtags.slice(0, 10).map((tag) => ({ post_id: newPost.id, hashtag: tag }))
+      );
+    }
+  }
+
+  // Atomic increment total_posts_created (prevents race condition)
+  await supabase.rpc("increment_posts_created", { p_user_id: user.id });
+
+  revalidatePath("/feed");
+  return { success: true };
+}
+
 export async function deletePost(postId: string): Promise<ActionResult> {
   if (!uuidSchema.safeParse(postId).success) {
     return { success: false, error: "Ungültige Post-ID" };
@@ -394,10 +575,10 @@ export async function deletePost(postId: string): Promise<ActionResult> {
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Get the post to find image_path
+  // Get the post to find storage paths
   const { data: post } = await supabase
     .from("posts")
-    .select("image_path, user_id")
+    .select("image_path, audio_path, user_id")
     .eq("id", postId)
     .single();
 
@@ -409,9 +590,12 @@ export async function deletePost(postId: string): Promise<ActionResult> {
     return { success: false, error: "Nicht berechtigt" };
   }
 
-  // Delete from storage (only if image exists)
+  // Delete from storage
   if (post.image_path) {
     await supabase.storage.from("memes").remove([post.image_path]);
+  }
+  if (post.audio_path) {
+    await supabase.storage.from("audio-posts").remove([post.audio_path]);
   }
 
   // Delete from database

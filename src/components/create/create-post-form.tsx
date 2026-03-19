@@ -2,13 +2,15 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Send } from "lucide-react";
+import { Send, ImageIcon, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUpload } from "./image-upload";
+import { AudioRecorder } from "./audio-recorder";
 import { OgPreview } from "./og-preview";
 import { MentionAutocomplete } from "@/components/shared/mention-autocomplete";
-import { createPostRecord } from "@/lib/actions/posts";
+import { createPostRecord, createAudioPostRecord } from "@/lib/actions/posts";
 import { uploadImageWithProgress } from "@/lib/utils/upload";
+import { uploadAudioWithProgress } from "@/lib/utils/upload-audio";
 import { MAX_CAPTION_LENGTH } from "@/lib/constants";
 
 type OgData = {
@@ -18,15 +20,21 @@ type OgData = {
   url: string;
 };
 
+type CreateMode = "visual" | "audio";
+
 const URL_REGEX = /https?:\/\/[^\s]+/;
 
 export function CreatePostForm() {
+  const [mode, setMode] = useState<CreateMode>("visual");
   const [image, setImage] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [ogData, setOgData] = useState<OgData | null>(null);
   const [ogLoading, setOgLoading] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedDurationMs, setRecordedDurationMs] = useState<number | null>(null);
+  const [recordedMimeType, setRecordedMimeType] = useState<string | null>(null);
   const lastFetchedUrl = useRef<string | null>(null);
   const ogAbortRef = useRef<AbortController | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -36,12 +44,11 @@ export function CreatePostForm() {
   function handleMentionSelect(username: string, startIndex: number, endIndex: number) {
     const newCaption = caption.slice(0, startIndex) + `@${username} ` + caption.slice(endIndex);
     setCaption(newCaption);
-    // Restore focus and cursor position after state update
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (el) {
         el.focus();
-        const pos = startIndex + username.length + 2; // @username + space
+        const pos = startIndex + username.length + 2;
         el.setSelectionRange(pos, pos);
       }
     });
@@ -77,8 +84,10 @@ export function CreatePostForm() {
     }
   }, []);
 
-  // Detect URLs in caption with debounce
+  // Detect URLs in caption with debounce (visual mode only)
   useEffect(() => {
+    if (mode !== "visual") return;
+
     const match = caption.match(URL_REGEX);
     if (!match) {
       if (ogData) {
@@ -93,15 +102,45 @@ export function CreatePostForm() {
 
     const timer = setTimeout(() => fetchOgData(url), 600);
     return () => clearTimeout(timer);
-  }, [caption, fetchOgData, ogData]);
+  }, [caption, fetchOgData, ogData, mode]);
 
-  const canSubmit = image || caption.trim();
+  function switchMode(newMode: CreateMode) {
+    if (newMode === mode || isSubmitting) return;
+
+    if (mode === "audio" && recordedBlob) {
+      if (!confirm("Aufnahme verwerfen?")) return;
+    }
+
+    if (mode === "audio") {
+      // Switching to visual: clear audio state (AudioRecorder unmounts, cleanup fires)
+      setRecordedBlob(null);
+      setRecordedDurationMs(null);
+      setRecordedMimeType(null);
+    } else {
+      // Switching to audio: clear visual state
+      ogAbortRef.current?.abort();
+      setOgData(null);
+      lastFetchedUrl.current = null;
+      setImage(null);
+    }
+
+    setMode(newMode);
+  }
+
+  const canSubmit =
+    mode === "visual"
+      ? image || caption.trim()
+      : !!recordedBlob;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!canSubmit) {
-      toast.error("Bitte füge ein Bild oder Text hinzu");
+      toast.error(
+        mode === "visual"
+          ? "Bitte füge ein Bild oder Text hinzu"
+          : "Caption und Aufnahme sind erforderlich"
+      );
       return;
     }
 
@@ -109,35 +148,59 @@ export function CreatePostForm() {
     setUploadProgress(0);
 
     try {
-      let imagePath: string | null = null;
-
-      // Upload image if present
-      if (image) {
-        const uploaded = await uploadImageWithProgress(
-          image,
+      if (mode === "audio" && recordedBlob && recordedDurationMs && recordedMimeType) {
+        // Audio submit path
+        const uploaded = await uploadAudioWithProgress(
+          recordedBlob,
+          recordedMimeType,
           setUploadProgress
         );
-        imagePath = uploaded.imagePath;
-      }
 
-      // Create post record in database
-      const result = await createPostRecord(
-        imagePath,
-        caption || null,
-        ogData
-          ? {
-              ogTitle: ogData.title || undefined,
-              ogDescription: ogData.description || undefined,
-              ogImage: ogData.image || undefined,
-              ogUrl: ogData.url,
-            }
-          : undefined
-      );
-      if (result.success) {
-        router.push("/feed");
-        return;
+        const result = await createAudioPostRecord(
+          uploaded.audioPath,
+          uploaded.audioMimeType,
+          recordedDurationMs,
+          caption
+        );
+
+        if (result.success) {
+          document.dispatchEvent(new Event("navigation-start"));
+          router.push("/feed");
+          return;
+        }
+        toast.error(result.error);
+      } else {
+        // Visual submit path (unchanged)
+        let imagePath: string | null = null;
+
+        if (image) {
+          const uploaded = await uploadImageWithProgress(
+            image,
+            setUploadProgress
+          );
+          imagePath = uploaded.imagePath;
+        }
+
+        const result = await createPostRecord(
+          imagePath,
+          caption || null,
+          ogData
+            ? {
+                ogTitle: ogData.title || undefined,
+                ogDescription: ogData.description || undefined,
+                ogImage: ogData.image || undefined,
+                ogUrl: ogData.url,
+              }
+            : undefined
+        );
+
+        if (result.success) {
+          document.dispatchEvent(new Event("navigation-start"));
+          router.push("/feed");
+          return;
+        }
+        toast.error(result.error);
       }
-      toast.error(result.error);
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Upload fehlgeschlagen"
@@ -150,8 +213,57 @@ export function CreatePostForm() {
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
-      <ImageUpload onImageSelect={setImage} />
+      {/* Mode switch tabs */}
+      <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
+        <button
+          type="button"
+          onClick={() => switchMode("visual")}
+          disabled={isSubmitting}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            mode === "visual"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          } disabled:opacity-50`}
+        >
+          <ImageIcon className="h-4 w-4" />
+          Bild / Text
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("audio")}
+          disabled={isSubmitting}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+            mode === "audio"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          } disabled:opacity-50`}
+        >
+          <Mic className="h-4 w-4" />
+          Audio
+        </button>
+      </div>
 
+      {/* Visual mode: image upload */}
+      {mode === "visual" && <ImageUpload onImageSelect={setImage} />}
+
+      {/* Audio mode: recorder */}
+      {mode === "audio" && (
+        <AudioRecorder
+          onRecordingComplete={(blob, durationMs, mimeType) => {
+            setRecordedBlob(blob);
+            setRecordedDurationMs(durationMs);
+            setRecordedMimeType(mimeType);
+          }}
+          onRecordingClear={() => {
+            setRecordedBlob(null);
+            setRecordedDurationMs(null);
+            setRecordedMimeType(null);
+          }}
+          disabled={isSubmitting}
+        />
+      )}
+
+      {/* Caption */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label htmlFor="caption" className="text-sm font-medium">
@@ -175,7 +287,13 @@ export function CreatePostForm() {
             onChange={(e) => setCaption(e.target.value)}
             maxLength={MAX_CAPTION_LENGTH}
             rows={3}
-            placeholder={image ? "Caption hinzufügen (optional)" : "Was gibt's zu lachen?"}
+            placeholder={
+              mode === "audio"
+                ? "Caption hinzufügen (optional)"
+                : image
+                  ? "Caption hinzufügen (optional)"
+                  : "Was gibt's zu lachen?"
+            }
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <MentionAutocomplete
@@ -186,11 +304,12 @@ export function CreatePostForm() {
         </div>
       </div>
 
-      {ogLoading && (
+      {/* OG preview (visual mode only) */}
+      {mode === "visual" && ogLoading && (
         <p className="text-xs text-muted-foreground">Link-Vorschau wird geladen...</p>
       )}
 
-      {ogData && !ogLoading && (
+      {mode === "visual" && ogData && !ogLoading && (
         <OgPreview
           title={ogData.title}
           description={ogData.description}
@@ -203,7 +322,8 @@ export function CreatePostForm() {
         />
       )}
 
-      {isSubmitting && image && (
+      {/* Upload progress */}
+      {isSubmitting && (mode === "visual" ? image : recordedBlob) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">

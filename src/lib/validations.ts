@@ -5,6 +5,8 @@ import {
   MAX_EMAIL_LENGTH,
   MAX_IMAGE_SIZE_BYTES,
   ALLOWED_IMAGE_TYPES,
+  MAX_AUDIO_DURATION_MS,
+  ALLOWED_RECORDED_AUDIO_TYPES,
 } from "./constants";
 
 export const uuidSchema = z.string().uuid("Ungültige ID");
@@ -107,6 +109,25 @@ export const changePasswordSchema = z
     message: "Passwörter stimmen nicht überein",
     path: ["confirmPassword"],
   });
+
+export const createAudioPostSchema = z.object({
+  caption: z
+    .string()
+    .max(MAX_CAPTION_LENGTH, `Caption darf maximal ${MAX_CAPTION_LENGTH} Zeichen haben`)
+    .optional(),
+  audioPath: z.string().min(1, "Audio-Datei ist erforderlich"),
+  audioDurationMs: z
+    .number()
+    .int()
+    .positive("Ungültige Dauer")
+    .max(MAX_AUDIO_DURATION_MS, `Audio darf maximal ${MAX_AUDIO_DURATION_MS / 1000} Sekunden lang sein`),
+  audioMimeType: z
+    .string()
+    .refine(
+      (v) => (ALLOWED_RECORDED_AUDIO_TYPES as readonly string[]).includes(v),
+      "Ungültiges Audio-Format"
+    ),
+});
 
 export function validateImageFile(file: File): string | null {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {

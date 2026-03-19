@@ -7,6 +7,7 @@ import { LinkPreview } from "./link-preview";
 import { PostCardLink } from "./post-card-link";
 import { PostFollowButton } from "./post-follow-button";
 import { AdminDeleteButton } from "./admin-delete-button";
+import { AudioPlayer } from "@/components/shared/audio-player";
 import { formatRelativeTime } from "@/lib/utils/format";
 import { profilePath } from "@/lib/utils/profile-path";
 import { renderTextWithMentions } from "@/lib/utils/render-mentions";
@@ -72,8 +73,10 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
         </div>
       )}
 
-      {/* Image / OG preview */}
-      {post.image_url && (
+      {/* Media: audio > image > OG preview (exclusive priority chain) */}
+      {post.audio_url ? (
+        <AudioPlayer src={post.audio_url} durationMs={post.audio_duration_ms} />
+      ) : post.image_url ? (
         <div className="relative w-full overflow-hidden">
           <Image
             src={post.image_url}
@@ -85,16 +88,14 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
             unoptimized={isGif}
           />
         </div>
-      )}
-
-      {hasOgData && (
+      ) : hasOgData ? (
         <LinkPreview
           title={post.og_title}
           description={post.og_description}
           image={post.og_image}
           url={post.og_url!}
         />
-      )}
+      ) : null}
 
       {/* Actions */}
       {hideCommentSection ? (

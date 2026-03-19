@@ -29,6 +29,10 @@ export type Post = {
   og_description: string | null;
   og_image: string | null;
   og_url: string | null;
+  audio_url: string | null;
+  audio_path: string | null;
+  audio_duration_ms: number | null;
+  audio_mime_type: string | null;
 };
 
 export type PostWithAuthor = Post & {
@@ -83,6 +87,10 @@ export type TopPostAllTime = {
   og_description: string | null;
   og_image: string | null;
   og_url: string | null;
+  audio_url: string | null;
+  audio_path: string | null;
+  audio_duration_ms: number | null;
+  audio_mime_type: string | null;
   top_comments: TopComment[];
   profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
 };

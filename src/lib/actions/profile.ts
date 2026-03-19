@@ -285,10 +285,21 @@ export async function deleteAccount(): Promise<ActionResult> {
       .remove(memeFiles.map((f) => `${user.id}/${f.name}`));
   }
 
-  // Delete Hall of Fame images from storage (image_path references memes bucket)
+  // Delete audio files from storage (user's daily audio posts)
+  const { data: audioFiles } = await adminClient.storage
+    .from("audio-posts")
+    .list(user.id);
+
+  if (audioFiles && audioFiles.length > 0) {
+    await adminClient.storage
+      .from("audio-posts")
+      .remove(audioFiles.map((f) => `${user.id}/${f.name}`));
+  }
+
+  // Delete Hall of Fame files from storage
   const { data: hallOfFameEntries } = await adminClient
     .from("top_posts_all_time")
-    .select("image_path")
+    .select("image_path, audio_path")
     .eq("user_id", user.id);
 
   if (hallOfFameEntries && hallOfFameEntries.length > 0) {
@@ -298,6 +309,14 @@ export async function deleteAccount(): Promise<ActionResult> {
 
     if (imagePaths.length > 0) {
       await adminClient.storage.from("memes").remove(imagePaths);
+    }
+
+    const audioPaths = hallOfFameEntries
+      .map((e) => e.audio_path)
+      .filter((p): p is string => p != null);
+
+    if (audioPaths.length > 0) {
+      await adminClient.storage.from("audio-posts").remove(audioPaths);
     }
   }
 

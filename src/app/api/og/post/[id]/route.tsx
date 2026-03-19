@@ -47,7 +47,7 @@ export async function GET(
     const { data: post } = await supabase
       .from("posts")
       .select(
-        "id, caption, image_url, upvote_count, comment_count, og_title, og_url, profiles!posts_user_id_fkey (username, display_name, avatar_url)"
+        "id, caption, image_url, audio_url, upvote_count, comment_count, og_title, og_url, profiles!posts_user_id_fkey (username, display_name, avatar_url)"
       )
       .eq("id", id)
       .single();
@@ -69,11 +69,12 @@ export async function GET(
     const caption = post.caption || "";
     const displayName = profile?.display_name || profile?.username || "twohrs";
     const truncated = caption.length > 120 ? caption.slice(0, 117) + "..." : caption;
-    const hasImage = !!post?.image_url;
+    const isAudioPost = !!post?.audio_url;
+    const hasImage = !!post?.image_url && !isAudioPost;
 
-    // Fetch post image if available
+    // Fetch post image if available (skip for audio posts)
     let imageDataUrl: string | null = null;
-    if (post?.image_url) {
+    if (hasImage && post?.image_url) {
       try {
         const imgRes = await fetch(post.image_url);
         if (imgRes.ok) {
@@ -164,6 +165,21 @@ export async function GET(
 
             {/* Caption */}
             <div style={{ display: "flex", flexDirection: "column", flexGrow: 1 }}>
+              {isAudioPost && (
+                <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
+                  <span style={{
+                    backgroundColor: "#f97316",
+                    color: "#141414",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    padding: "4px 12px",
+                    borderRadius: 8,
+                  }}>
+                    Audio Post
+                  </span>
+                </div>
+              )}
+
               <span
                 style={{
                   color: "#fafafa",

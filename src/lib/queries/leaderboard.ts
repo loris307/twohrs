@@ -19,6 +19,10 @@ const ARCHIVED_TOP_POST_SELECT = `
   upvote_count,
   created_at,
   top_comments,
+  audio_url,
+  audio_path,
+  audio_duration_ms,
+  audio_mime_type,
   profiles (username, display_name, avatar_url)
 `;
 
@@ -34,6 +38,10 @@ const LIVE_TOP_POST_SELECT = `
   og_description,
   og_image,
   og_url,
+  audio_url,
+  audio_path,
+  audio_duration_ms,
+  audio_mime_type,
   profiles (username, display_name, avatar_url)
 `;
 
@@ -152,6 +160,10 @@ export async function getTopPostsAllTime(): Promise<TopPostAllTime[]> {
     og_description: null,
     og_image: null,
     og_url: null,
+    audio_url: post.audio_url,
+    audio_path: post.audio_path,
+    audio_duration_ms: post.audio_duration_ms,
+    audio_mime_type: post.audio_mime_type,
     top_comments: (post.top_comments as TopComment[] | null) ?? [],
     profiles: post.profiles as unknown as TopPostAllTime["profiles"],
   }));
@@ -303,6 +315,10 @@ export async function getLatestTopPost(): Promise<TopPostAllTime | null> {
       og_description: livePost.og_description ?? null,
       og_image: livePost.og_image ?? null,
       og_url: livePost.og_url ?? null,
+      audio_url: livePost.audio_url ?? null,
+      audio_path: livePost.audio_path ?? null,
+      audio_duration_ms: livePost.audio_duration_ms ?? null,
+      audio_mime_type: livePost.audio_mime_type ?? null,
       top_comments: topComments,
       profiles: livePost.profiles as unknown as TopPostAllTime["profiles"],
     };
@@ -331,6 +347,10 @@ export async function getLatestTopPost(): Promise<TopPostAllTime | null> {
     og_description: null,
     og_image: null,
     og_url: null,
+    audio_url: data.audio_url,
+    audio_path: data.audio_path,
+    audio_duration_ms: data.audio_duration_ms,
+    audio_mime_type: data.audio_mime_type,
     top_comments: (data.top_comments as TopComment[] | null) ?? [],
     profiles: data.profiles as unknown as TopPostAllTime["profiles"],
   };
