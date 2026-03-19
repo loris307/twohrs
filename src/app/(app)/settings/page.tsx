@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getVisibleAccountEmail } from "@/lib/utils/auth-email";
+import {
+  getVisibleAccountEmail,
+  getRecoveryEmailStatus,
+} from "@/lib/utils/auth-email";
 import { SettingsForm } from "./settings-form";
 
 export default async function SettingsPage() {
@@ -23,6 +26,8 @@ export default async function SettingsPage() {
     redirect("/auth/login");
   }
 
+  const recoveryEmailStatus = getRecoveryEmailStatus(user);
+
   return (
     <div className="space-y-8">
       <div>
@@ -38,6 +43,8 @@ export default async function SettingsPage() {
         avatarUrl={profile.avatar_url}
         userEmail={getVisibleAccountEmail(user.email)}
         username={profile.username}
+        recoveryEmailStatus={recoveryEmailStatus}
+        pendingEmail={user.new_email ?? null}
       />
     </div>
   );

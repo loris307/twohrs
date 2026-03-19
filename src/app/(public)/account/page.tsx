@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getVisibleAccountEmail } from "@/lib/utils/auth-email";
+import {
+  getVisibleAccountEmail,
+  getRecoveryEmailStatus,
+} from "@/lib/utils/auth-email";
 import { SettingsForm } from "@/app/(app)/settings/settings-form";
 
 export default async function AccountPage() {
@@ -57,6 +60,8 @@ export default async function AccountPage() {
           avatarUrl={profile.avatar_url}
           userEmail={getVisibleAccountEmail(user.email)}
           username={profile.username}
+          recoveryEmailStatus={getRecoveryEmailStatus(user)}
+          pendingEmail={user.new_email ?? null}
         />
       </div>
     </div>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPrivateProfileById } from "@/lib/queries/private-profile";
 import { getUnreadMentionCount } from "@/lib/queries/mentions";
+import { getRecoveryEmailStatus } from "@/lib/utils/auth-email";
 import { AppShell } from "./app-shell";
 
 export default async function AppLayout({
@@ -23,12 +24,18 @@ export default async function AppLayout({
     getUnreadMentionCount(user.id),
   ]);
 
+  const recoveryEmailStatus = getRecoveryEmailStatus(user);
+  const showRecoveryBanner =
+    recoveryEmailStatus === "missing_recovery_email" ||
+    recoveryEmailStatus === "pending_first_email";
+
   return (
     <AppShell
       userId={user.id}
       username={profile?.username}
       unreadMentionCount={unreadMentionCount}
       moderationStrikes={profile?.moderation_strikes ?? 0}
+      showRecoveryBanner={showRecoveryBanner}
     >
       {children}
     </AppShell>

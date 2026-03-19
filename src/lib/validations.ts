@@ -99,6 +99,8 @@ export const updateProfileSchema = z.object({
     .optional(),
 });
 
+export { passwordSchema };
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
@@ -106,6 +108,21 @@ export const changePasswordSchema = z
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwörter stimmen nicht überein",
+    path: ["confirmPassword"],
+  });
+
+export const setRecoveryEmailSchema = z.object({
+  email: requiredEmailSchema,
+  currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
     message: "Passwörter stimmen nicht überein",
     path: ["confirmPassword"],
   });

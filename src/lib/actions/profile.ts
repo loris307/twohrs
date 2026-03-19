@@ -1,13 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProfileSchema,
   changePasswordSchema,
+  setRecoveryEmailSchema,
 } from "@/lib/validations";
 import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
+import { hasEmailIdentity } from "@/lib/utils/auth-email";
+import { checkEmailPolicy } from "@/lib/utils/signup-guards";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB } from "@/lib/constants";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/public-env";
 import type { ActionResult } from "@/lib/types";
@@ -246,6 +251,158 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
     return { success: false, error: "Passwort-Änderung fehlgeschlagen" };
   }
 
+  return { success: true };
+}
+
+const RECOVERY_EMAIL_RATE_LIMIT_MAX = 3;
+const RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+export async function setRecoveryEmail(formData: FormData): Promise<ActionResult> {
+  const captchaToken = formData.get("captchaToken") as string | null;
+  if (!captchaToken) {
+    return { success: false, error: "Captcha erforderlich" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email) {
+    return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  // Reject OAuth-only users (no password to verify)
+  if (!hasEmailIdentity(user)) {
+    return { success: false, error: "Nicht verfügbar für OAuth-Accounts" };
+  }
+
+  const parsed = setRecoveryEmailSchema.safeParse({
+    email: formData.get("email") as string,
+    currentPassword: formData.get("currentPassword") as string,
+  });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  // Rate-limit: max 3 email change requests per hour per user
+  const rateLimit = checkRateLimit(
+    `auth:recovery-email:${user.id}`,
+    RECOVERY_EMAIL_RATE_LIMIT_MAX,
+    RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS
+  );
+  if (!rateLimit.allowed) {
+    return { success: false, error: "Zu viele Anfragen. Bitte versuche es später erneut." };
+  }
+
+  // Check email policy (disposable, banned, internal)
+  const policyResult = await checkEmailPolicy(parsed.data.email);
+  if (!policyResult.ok) {
+    return { success: false, error: policyResult.error };
+  }
+
+  // Verify current password
+  const { createClient: createAnonClient } = await import("@supabase/supabase-js");
+  const verifyClient = createAnonClient(
+    getSupabaseUrl(),
+    getSupabaseAnonKey(),
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const { error: signInError } = await verifyClient.auth.signInWithPassword({
+    email: user.email,
+    password: parsed.data.currentPassword,
+    options: { captchaToken },
+  });
+  if (signInError) {
+    return { success: false, error: "Aktuelles Passwort ist falsch" };
+  }
+
+  // Start email change via Supabase
+  const headersList = await headers();
+  const origin = headersList.get("origin") ?? "https://twohrs.com";
+  const { error } = await supabase.auth.updateUser(
+    { email: policyResult.email },
+    { emailRedirectTo: `${origin}/auth/callback/email-change` }
+  );
+
+  if (error) {
+    if (error.message?.toLowerCase().includes("already registered") || error.message?.toLowerCase().includes("already been registered")) {
+      return { success: false, error: "Diese E-Mail-Adresse wird bereits verwendet" };
+    }
+    console.error("Recovery email update failed:", error.message);
+    return { success: false, error: "E-Mail-Änderung fehlgeschlagen" };
+  }
+
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function resendRecoveryEmail(formData: FormData): Promise<ActionResult> {
+  const captchaToken = formData.get("captchaToken") as string | null;
+  if (!captchaToken) {
+    return { success: false, error: "Captcha erforderlich" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !user.email) {
+    return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  if (!user.new_email) {
+    return { success: false, error: "Keine ausstehende E-Mail-Änderung" };
+  }
+
+  // Shares rate-limit bucket with setRecoveryEmail
+  const rateLimit = checkRateLimit(
+    `auth:recovery-email:${user.id}`,
+    RECOVERY_EMAIL_RATE_LIMIT_MAX,
+    RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS
+  );
+  if (!rateLimit.allowed) {
+    return { success: false, error: "Zu viele Anfragen. Bitte versuche es später erneut." };
+  }
+
+  const { error } = await supabase.auth.resend({
+    type: "email_change",
+    email: user.email,
+    options: { captchaToken },
+  });
+
+  if (error) {
+    console.error("Resend recovery email failed:", error.message);
+    return { success: false, error: "Erneutes Senden fehlgeschlagen" };
+  }
+
+  return { success: true };
+}
+
+export async function cancelRecoveryEmail(): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  if (!user.new_email) {
+    return { success: false, error: "Keine ausstehende E-Mail-Änderung" };
+  }
+
+  // Try clearing pending change by setting email to current email
+  // If this doesn't work, fall back to admin API
+  const { error } = await supabase.auth.updateUser({ email: user.email });
+  if (error) {
+    // Fallback: use admin API
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createAdminClient();
+    const { error: adminError } = await adminClient.auth.admin.updateUserById(
+      user.id,
+      { email: user.email }
+    );
+    if (adminError) {
+      console.error("Cancel recovery email failed:", adminError.message);
+      return { success: false, error: "Abbrechen fehlgeschlagen" };
+    }
+  }
+
+  revalidatePath("/settings");
   return { success: true };
 }
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Mail } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
+import { requestPasswordReset } from "@/lib/actions/auth";
 import { MAX_EMAIL_LENGTH } from "@/lib/constants";
 import { requiredEmailSchema } from "@/lib/validations";
 
@@ -33,20 +33,13 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(parsedEmail.data, {
-      redirectTo: `${window.location.origin}/auth/callback/reset`,
-      captchaToken,
-    });
+    const formData = new FormData();
+    formData.set("email", parsedEmail.data);
+    formData.set("captchaToken", captchaToken);
 
-    if (error) {
-      toast.error(error.message);
-      turnstileRef.current?.reset();
-      setCaptchaToken(null);
-      setIsLoading(false);
-      return;
-    }
+    await requestPasswordReset(formData);
 
+    // Always show success (generic response to prevent account enumeration)
     setSent(true);
     setIsLoading(false);
   }
@@ -59,8 +52,8 @@ export default function ForgotPasswordPage() {
             Passwort vergessen
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Dieser Reset funktioniert nur für Konten mit hinterlegter
-            E-Mail-Adresse.
+            Dieser Reset funktioniert nur für Konten mit bestätigter
+            Recovery-E-Mail.
           </p>
         </div>
 
@@ -83,8 +76,8 @@ export default function ForgotPasswordPage() {
           <>
             <form onSubmit={handleSubmit} className="space-y-4">
               <p className="rounded-md border border-border bg-accent/50 p-3 text-sm text-muted-foreground">
-                Wenn du dich ohne sichtbare E-Mail registriert hast, gibt es
-                aktuell keinen E-Mail-Reset für dein Konto.
+                Wenn du dich ohne E-Mail registriert hast, logge dich ein und
+                hinterlege zuerst eine Recovery-E-Mail in den Einstellungen.
               </p>
 
               <div className="space-y-2">

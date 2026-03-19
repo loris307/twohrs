@@ -4,6 +4,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { TimeBanner } from "@/components/layout/time-banner";
 import { ModerationWarning } from "@/components/layout/moderation-warning";
+import { RecoveryEmailBanner } from "@/components/layout/recovery-email-banner";
 import { SessionEndedModal } from "@/components/countdown/session-ended-modal";
 import { Footer } from "@/components/layout/footer";
 import { useUnreadMentions } from "@/lib/hooks/use-unread-mentions";
@@ -14,12 +15,14 @@ export function AppShell({
   username,
   unreadMentionCount = 0,
   moderationStrikes = 0,
+  showRecoveryBanner = false,
 }: {
   children: React.ReactNode;
   userId: string;
   username?: string;
   unreadMentionCount?: number;
   moderationStrikes?: number;
+  showRecoveryBanner?: boolean;
 }) {
   const { count: mentionCount } = useUnreadMentions(userId, unreadMentionCount);
 
@@ -27,6 +30,7 @@ export function AppShell({
     <div className="flex min-h-screen flex-col">
       <Navbar username={username} mentionCount={mentionCount} />
       <TimeBanner />
+      {showRecoveryBanner && <RecoveryEmailBanner />}
       {moderationStrikes >= 2 && <ModerationWarning strikes={moderationStrikes} />}
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 pb-20 md:pb-6">
         {children}
