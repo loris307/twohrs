@@ -400,16 +400,11 @@ export async function createAudioPostRecord(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  const caption = normalizeText(rawCaption);
-
-  // Audio posts require a non-whitespace caption
-  if (!caption.trim()) {
-    return { success: false, error: "Caption ist erforderlich für Audio-Posts" };
-  }
+  const caption = rawCaption ? normalizeText(rawCaption) : null;
 
   // Validate input
   const parsed = createAudioPostSchema.safeParse({
-    caption: caption.trim(),
+    caption: caption?.trim() || undefined,
     audioPath,
     audioDurationMs,
     audioMimeType,
@@ -437,7 +432,7 @@ export async function createAudioPostRecord(
     };
   }
 
-  if (caption.length > MAX_CAPTION_LENGTH) {
+  if (caption && caption.length > MAX_CAPTION_LENGTH) {
     return {
       success: false,
       error: `Caption darf maximal ${MAX_CAPTION_LENGTH} Zeichen haben`,

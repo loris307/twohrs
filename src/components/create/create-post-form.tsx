@@ -130,7 +130,7 @@ export function CreatePostForm() {
   const canSubmit =
     mode === "visual"
       ? image || caption.trim()
-      : caption.trim() && recordedBlob;
+      : !!recordedBlob;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -289,7 +289,7 @@ export function CreatePostForm() {
             rows={3}
             placeholder={
               mode === "audio"
-                ? "Caption hinzufügen (pflicht)"
+                ? "Caption hinzufügen (optional)"
                 : image
                   ? "Caption hinzufügen (optional)"
                   : "Was gibt's zu lachen?"
