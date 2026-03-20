@@ -128,6 +128,7 @@ export type CommentListItem = CommentWithAuthor & {
 export type CommentPage = {
   comments: CommentListItem[];
   totalCount: number;
+  topLevelCount: number;
   nextOffset: number | null;
 };
 

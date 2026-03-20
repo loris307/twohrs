@@ -40,6 +40,7 @@ export function PostActions({
     commentId: string;
     username: string;
   } | null>(null);
+  const [replyVersion, setReplyVersion] = useState(0);
 
   const fetchComments = useCallback(() => {
     startTransition(async () => {
@@ -67,6 +68,7 @@ export function PostActions({
   }
 
   function handleCommentCreated() {
+    setReplyVersion((v) => v + 1);
     fetchComments();
     setCount((prev) => prev + 1);
   }
@@ -135,7 +137,7 @@ export function PostActions({
 
             {comments.map((comment) => (
               <CommentThread
-                key={comment.id}
+                key={`${comment.id}-${replyVersion}`}
                 comment={comment}
                 currentUserId={currentUserId}
                 isAdmin={isAdmin}

@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       comments: page.comments,
       totalCount: page.totalCount,
+      topLevelCount: page.topLevelCount,
       nextOffset: page.nextOffset,
       currentUserId: user.id,
     });

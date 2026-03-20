@@ -23,6 +23,8 @@ export function PostComments({ postId, isAdmin }: PostCommentsProps) {
     commentId: string;
     username: string;
   } | null>(null);
+  // Bumped on reply creation so the target thread can re-fetch
+  const [replyVersion, setReplyVersion] = useState(0);
 
   const loadTopLevelComments = useCallback((offset: number) => {
     startTransition(async () => {
@@ -52,6 +54,8 @@ export function PostComments({ postId, isAdmin }: PostCommentsProps) {
   }, [loadTopLevelComments]);
 
   function handleCommentCreated() {
+    // Bump version so expanded threads re-fetch their replies
+    setReplyVersion((v) => v + 1);
     loadTopLevelComments(0);
   }
 
@@ -95,7 +99,7 @@ export function PostComments({ postId, isAdmin }: PostCommentsProps) {
 
         {comments.map((comment) => (
           <CommentThread
-            key={comment.id}
+            key={`${comment.id}-${replyVersion}`}
             comment={comment}
             currentUserId={currentUserId}
             isAdmin={isAdmin}

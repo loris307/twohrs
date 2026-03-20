@@ -57,29 +57,31 @@ export function CommentThread({
     setIsExpanded((prev) => !prev);
   }
 
+  // Only indent by 1 level relative to parent (not absolute depth).
+  // The parent is already indented, so we just add 1 step each time,
+  // but stop adding visual indent once we hit the cap.
   const clampedDepth = getVisualCommentDepth(visualDepth, maxVisualDepth);
-  const indentStyle = clampedDepth > 0
-    ? { marginLeft: `${clampedDepth * 0.75}rem` }
-    : undefined;
+  const shouldIndent = visualDepth > 0 && clampedDepth > getVisualCommentDepth(visualDepth - 1, maxVisualDepth);
 
   const hasReplies = comment.reply_count > 0;
 
   return (
-    <div style={indentStyle} role="article">
-      {clampedDepth > 0 && (
-        <div className="border-l border-border pl-3">
+    <div role="article">
+      {visualDepth > 0 ? (
+        <div
+          className="border-l border-border pl-3"
+          style={shouldIndent ? { marginLeft: "0.75rem" } : undefined}
+        >
           <CommentCard
             comment={comment}
             currentUserId={currentUserId}
             onDeleted={(id) => onDeleted(id)}
             onReply={onReply}
-            isReply={visualDepth > 0}
+            isReply
             isAdmin={isAdmin}
           />
         </div>
-      )}
-
-      {clampedDepth === 0 && (
+      ) : (
         <CommentCard
           comment={comment}
           currentUserId={currentUserId}
@@ -91,7 +93,7 @@ export function CommentThread({
 
       {/* Expand/collapse button for replies */}
       {hasReplies && !isExpanded && (
-        <div style={indentStyle ? { marginLeft: `${(clampedDepth + 1) * 0.75}rem` } : { marginLeft: "0.75rem" }}>
+        <div className="ml-3 pl-3">
           <button
             onClick={handleExpand}
             disabled={isLoading}
@@ -104,7 +106,7 @@ export function CommentThread({
 
       {hasReplies && isExpanded && (
         <div>
-          <div style={indentStyle ? { marginLeft: `${(clampedDepth + 1) * 0.75}rem` } : { marginLeft: "0.75rem" }}>
+          <div className="ml-3 pl-3">
             <button
               onClick={() => setIsExpanded(false)}
               className="py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -123,7 +125,6 @@ export function CommentThread({
               maxVisualDepth={maxVisualDepth}
               onReply={onReply}
               onDeleted={(id) => {
-                // Reload this branch from offset 0 after delete
                 loadReplies(0);
                 onDeleted(id);
               }}
@@ -131,7 +132,7 @@ export function CommentThread({
           ))}
 
           {nextOffset !== null && (
-            <div style={indentStyle ? { marginLeft: `${(clampedDepth + 1) * 0.75}rem` } : { marginLeft: "0.75rem" }}>
+            <div className="ml-3 pl-3">
               <button
                 onClick={() => loadReplies(nextOffset)}
                 disabled={isLoading}
@@ -147,5 +148,4 @@ export function CommentThread({
   );
 }
 
-// Export the handleReplyCreated pattern for parent components
 export type { CommentThreadProps };

@@ -56,7 +56,14 @@ export async function getTopLevelCommentsPage(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: comments, count } = await supabase
+  // Count ALL non-deleted comments (all depths) for the visible count
+  const { count: allCount } = await supabase
+    .from("comments")
+    .select("id", { count: "exact", head: true })
+    .eq("post_id", postId)
+    .is("deleted_at", null);
+
+  const { data: comments, count: topLevelCount } = await supabase
     .from("comments")
     .select(COMMENT_SELECT, { count: "exact" })
     .eq("post_id", postId)
@@ -73,7 +80,8 @@ export async function getTopLevelCommentsPage(
 
   return {
     comments: enriched,
-    totalCount: count ?? 0,
+    totalCount: allCount ?? 0,
+    topLevelCount: topLevelCount ?? 0,
     nextOffset: (comments?.length ?? 0) < limit ? null : offset + limit,
   };
 }
@@ -103,6 +111,7 @@ export async function getCommentRepliesPage(
   return {
     comments: enriched,
     totalCount: count ?? 0,
+    topLevelCount: count ?? 0,
     nextOffset: (comments?.length ?? 0) < limit ? null : offset + limit,
   };
 }
