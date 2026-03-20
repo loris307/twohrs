@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Mail, Clock, Check, X, Loader2, RefreshCw } from "lucide-react";
@@ -13,7 +13,6 @@ import {
 import { PasswordInput } from "@/components/shared/password-input";
 import { MAX_EMAIL_LENGTH } from "@/lib/constants";
 import type { RecoveryEmailStatus } from "@/lib/utils/auth-email";
-import { useEffect } from "react";
 
 interface RecoveryEmailSectionProps {
   recoveryEmailStatus: RecoveryEmailStatus;
@@ -48,9 +47,19 @@ export function RecoveryEmailSection({
     }
   }, [searchParams, router]);
 
-  // OAuth-only: section hidden entirely
+  // OAuth-only: show email read-only (managed by Google)
   if (recoveryEmailStatus === "oauth_only") {
-    return null;
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium">E-Mail</p>
+        {visibleEmail && (
+          <p className="text-sm text-muted-foreground">{visibleEmail}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Wird über deinen Anmeldeanbieter verwaltet.
+        </p>
+      </div>
+    );
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

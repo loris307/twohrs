@@ -99,27 +99,28 @@ export async function runSignupGuards(
   email: string,
   headersList: Headers
 ): Promise<SignupGuardResult> {
-  const policyResult = await checkEmailPolicy(email);
-  if (!policyResult.ok) {
-    // Preserve original signup error messages for disposable/banned
-    if (policyResult.reason === "disposable_email") {
-      return {
-        ok: false,
-        error:
-          "Temporäre oder Alias-E-Mail-Adressen sind für Registrierungen nicht erlaubt. Bitte nutze eine normale E-Mail-Adresse.",
-        reason: "disposable_email",
-      };
-    }
-    if (policyResult.reason === "banned_email") {
-      return { ok: false, error: "Registrierung nicht möglich", reason: "banned_email" };
-    }
-    if (policyResult.reason === "invalid_email") {
-      return { ok: false, error: "Registrierung fehlgeschlagen", reason: "invalid_email" };
-    }
-    return { ok: false, error: policyResult.error, reason: policyResult.reason };
+  // 1. Cheap checks first (no DB)
+  const parsedEmail = requiredEmailSchema.safeParse(email);
+  if (!parsedEmail.success) {
+    return { ok: false, error: "Registrierung fehlgeschlagen", reason: "invalid_email" };
   }
 
-  const normalizedEmail = policyResult.email;
+  const normalizedEmail = parsedEmail.data;
+
+  if (isInternalAuthEmail(normalizedEmail)) {
+    return { ok: false, error: "Registrierung fehlgeschlagen", reason: "internal_email" };
+  }
+
+  if (isDisposableEmail(normalizedEmail)) {
+    return {
+      ok: false,
+      error:
+        "Temporäre oder Alias-E-Mail-Adressen sind für Registrierungen nicht erlaubt. Bitte nutze eine normale E-Mail-Adresse.",
+      reason: "disposable_email",
+    };
+  }
+
+  // 2. Rate limits (cheap, in-memory — before any DB call)
   const emailHash = hashNormalizedAuthEmail(normalizedEmail);
   const clientIp = getClientIp(headersList);
 
@@ -157,6 +158,18 @@ export async function runSignupGuards(
       error:
         "Für diese E-Mail wurde gerade bereits eine Registrierungsanfrage gestellt. Bitte prüfe dein Postfach und versuche es gleich erneut.",
     };
+  }
+
+  // 3. DB check last (expensive — only reached after rate limits pass)
+  const adminClient = createAdminClient();
+  const { data: banned } = await adminClient
+    .from("banned_email_hashes")
+    .select("hash")
+    .eq("hash", emailHash)
+    .single();
+
+  if (banned) {
+    return { ok: false, error: "Registrierung nicht möglich", reason: "banned_email" };
   }
 
   return { ok: true, email: normalizedEmail };

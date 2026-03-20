@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProfileSchema,
@@ -13,7 +12,7 @@ import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { hasEmailIdentity } from "@/lib/utils/auth-email";
 import { checkEmailPolicy } from "@/lib/utils/signup-guards";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB } from "@/lib/constants";
+import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB, getBaseUrl } from "@/lib/constants";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/public-env";
 import type { ActionResult } from "@/lib/types";
 
@@ -315,11 +314,10 @@ export async function setRecoveryEmail(formData: FormData): Promise<ActionResult
   }
 
   // Start email change via Supabase
-  const headersList = await headers();
-  const origin = headersList.get("origin") ?? "https://twohrs.com";
+  const baseUrl = getBaseUrl();
   const { error } = await supabase.auth.updateUser(
     { email: policyResult.email },
-    { emailRedirectTo: `${origin}/auth/callback/email-change` }
+    { emailRedirectTo: `${baseUrl}/auth/callback/email-change` }
   );
 
   if (error) {
