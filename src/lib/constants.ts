@@ -1,12 +1,18 @@
+const ALLOWED_AUTH_ORIGINS = [
+  "https://twohrs.com",
+  "https://socialnetwork-dev.vercel.app",
+  "http://localhost:3000",
+];
+
 /**
  * Trusted base URL for auth redirects (email links, callbacks).
- * Uses VERCEL_PROJECT_PRODUCTION_URL (auto-set by Vercel) or falls back to twohrs.com.
+ * Validates the request origin against an allowlist to prevent open-redirect
+ * attacks while still working correctly on both production and preview.
  */
-export function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+export function getBaseUrl(requestOrigin?: string | null): string {
+  if (requestOrigin && ALLOWED_AUTH_ORIGINS.includes(requestOrigin)) {
+    return requestOrigin;
+  }
   return "https://twohrs.com";
 }
 

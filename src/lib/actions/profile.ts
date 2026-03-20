@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProfileSchema,
@@ -246,6 +247,9 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
   });
 
   if (error) {
+    if (error.message?.toLowerCase().includes("same password") || error.message?.toLowerCase().includes("different from")) {
+      return { success: false, error: "Das neue Passwort muss sich vom bisherigen unterscheiden" };
+    }
     console.error("Password change failed:", error.message);
     return { success: false, error: "Passwort-Änderung fehlgeschlagen" };
   }
@@ -314,7 +318,8 @@ export async function setRecoveryEmail(formData: FormData): Promise<ActionResult
   }
 
   // Start email change via Supabase
-  const baseUrl = getBaseUrl();
+  const headersList = await headers();
+  const baseUrl = getBaseUrl(headersList.get("origin"));
   const { error } = await supabase.auth.updateUser(
     { email: policyResult.email },
     { emailRedirectTo: `${baseUrl}/auth/callback/email-change` }

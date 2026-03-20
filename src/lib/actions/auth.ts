@@ -277,7 +277,7 @@ export async function requestPasswordReset(formData: FormData): Promise<ActionRe
   }
 
   const supabase = await createClient();
-  const baseUrl = getBaseUrl();
+  const baseUrl = getBaseUrl(headersList.get("origin"));
 
   // Fire and forget — always return success regardless of outcome
   await supabase.auth.resetPasswordForEmail(parsedEmail.data, {
@@ -312,6 +312,9 @@ export async function completePasswordReset(formData: FormData): Promise<ActionR
   });
 
   if (error) {
+    if (error.message?.toLowerCase().includes("same password") || error.message?.toLowerCase().includes("different from")) {
+      return { success: false, error: "Das neue Passwort muss sich vom bisherigen unterscheiden" };
+    }
     console.error("Password reset failed:", error.message);
     return { success: false, error: "Passwort-Änderung fehlgeschlagen" };
   }
