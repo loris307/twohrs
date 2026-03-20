@@ -9,6 +9,13 @@ const BUCKET_PREFIX_MAP = {
 } as const;
 
 type MediaBucket = keyof typeof BUCKET_PREFIX_MAP;
+type MediaKind = "image" | "audio";
+
+type LatestTopPostMediaCandidate = {
+  upvote_count: number;
+  image_path: string | null;
+  audio_path: string | null;
+};
 
 /**
  * Strip leading slashes and reject traversal patterns.
@@ -54,4 +61,28 @@ export function buildPrivateMediaUrl(
     throw new Error(`Invalid storage object path: ${path}`);
   }
   return `${BUCKET_PREFIX_MAP[bucket]}/${normalized}`;
+}
+
+/**
+ * Check whether a media path belongs to the latest live top post currently
+ * shown on the landing page. This is the only non-archived post media that
+ * anonymous users may fetch publicly.
+ */
+export function matchesLatestTopPostMediaPath(
+  mediaKind: MediaKind,
+  objectPath: string,
+  latestTopPost: LatestTopPostMediaCandidate | null,
+): boolean {
+  if (!latestTopPost || latestTopPost.upvote_count <= 0) {
+    return false;
+  }
+
+  const candidatePath = mediaKind === "image"
+    ? latestTopPost.image_path
+    : latestTopPost.audio_path;
+  if (!candidatePath) {
+    return false;
+  }
+
+  return normalizeStorageObjectPath(candidatePath) === objectPath;
 }

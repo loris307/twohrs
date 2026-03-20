@@ -4,6 +4,7 @@ import {
   isOwnedStoragePath,
   buildPrivateMediaUrl,
   getMediaRoutePrefix,
+  matchesLatestTopPostMediaPath,
 } from "./private-media";
 
 describe("normalizeStorageObjectPath", () => {
@@ -107,5 +108,61 @@ describe("buildPrivateMediaUrl", () => {
 
   it("throws on empty path", () => {
     expect(() => buildPrivateMediaUrl("memes", "")).toThrow();
+  });
+});
+
+describe("matchesLatestTopPostMediaPath", () => {
+  it("matches the latest live top post image path when it has upvotes", () => {
+    expect(
+      matchesLatestTopPostMediaPath("image", "user/top-post.png", {
+        upvote_count: 42,
+        image_path: "user/top-post.png",
+        audio_path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("matches the latest live top post audio path when it has upvotes", () => {
+    expect(
+      matchesLatestTopPostMediaPath("audio", "user/top-post.webm", {
+        upvote_count: 42,
+        image_path: null,
+        audio_path: "user/top-post.webm",
+      }),
+    ).toBe(true);
+  });
+
+  it("normalizes a leading slash on the stored path", () => {
+    expect(
+      matchesLatestTopPostMediaPath("image", "user/top-post.png", {
+        upvote_count: 42,
+        image_path: "/user/top-post.png",
+        audio_path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false when the latest live top post has no upvotes", () => {
+    expect(
+      matchesLatestTopPostMediaPath("image", "user/top-post.png", {
+        upvote_count: 0,
+        image_path: "user/top-post.png",
+        audio_path: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when the path does not match the latest live top post", () => {
+    expect(
+      matchesLatestTopPostMediaPath("image", "user/not-top-post.png", {
+        upvote_count: 42,
+        image_path: "user/top-post.png",
+        audio_path: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false when there is no latest live top post", () => {
+    expect(matchesLatestTopPostMediaPath("image", "user/top-post.png", null)).toBe(false);
   });
 });

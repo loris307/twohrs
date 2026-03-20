@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeStorageObjectPath } from "@/lib/utils/private-media";
+import { normalizeStorageObjectPath, matchesLatestTopPostMediaPath } from "@/lib/utils/private-media";
 import { isAppOpen } from "@/lib/utils/time";
 
 const CONTENT_TYPE_MAP: Record<string, string> = {
@@ -32,8 +32,17 @@ export async function GET(
     .limit(1)
     .maybeSingle();
 
-  if (archived) {
-    // Hall-of-Fame: serve publicly with long cache
+  const { data: latestLiveTopPost } = archived
+    ? { data: null }
+    : await admin
+        .from("posts")
+        .select("upvote_count, image_path, audio_path")
+        .order("upvote_count", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+  if (archived || matchesLatestTopPostMediaPath("image", objectPath, latestLiveTopPost)) {
+    // Hall-of-Fame and current landing-page top post: serve publicly with cache
     const { data, error } = await admin.storage.from("memes").download(objectPath);
     if (error || !data) {
       console.error("Media proxy: file not found in storage", objectPath);
