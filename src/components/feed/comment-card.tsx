@@ -10,12 +10,13 @@ import { profilePath } from "@/lib/utils/profile-path";
 import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "sonner";
-import type { CommentWithAuthor } from "@/lib/types";
+import { MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
+import type { CommentListItem } from "@/lib/types";
 
 interface CommentCardProps {
-  comment: CommentWithAuthor;
+  comment: CommentListItem;
   currentUserId?: string;
-  onDeleted: () => void;
+  onDeleted: (commentId: string) => void;
   onReply?: (commentId: string, username: string) => void;
   isReply?: boolean;
   isReplyTarget?: boolean;
@@ -32,14 +33,17 @@ export function CommentCard({
   isAdmin,
 }: CommentCardProps) {
   const profile = comment.profiles;
+  const isDeleted = !!comment.deleted_at;
   const [voted, setVoted] = useState(comment.has_voted);
   const [count, setCount] = useState(comment.upvote_count);
   const [isPending, startTransition] = useTransition();
   const isOwn = currentUserId === comment.user_id;
+  const canReply = !!onReply && !isDeleted && comment.depth < MAX_COMMENT_THREAD_DEPTH;
 
   const avatarSize = isReply ? 20 : 24;
 
   function handleVote() {
+    if (isDeleted) return;
     const newVoted = !voted;
     setVoted(newVoted);
     setCount((prev) => prev + (newVoted ? 1 : -1));
@@ -58,11 +62,35 @@ export function CommentCard({
     startTransition(async () => {
       const result = await deleteComment(comment.id);
       if (result.success) {
-        onDeleted();
+        onDeleted(comment.id);
       } else {
         toast.error(result.error);
       }
     });
+  }
+
+  // Soft-deleted placeholder
+  if (isDeleted) {
+    return (
+      <div
+        className={cn("flex gap-2 py-2", isReplyTarget && "rounded-md bg-primary/5")}
+        role="article"
+      >
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-full bg-muted font-medium",
+            isReply ? "h-5 w-5 text-[8px]" : "h-6 w-6 text-[10px]"
+          )}
+        >
+          ?
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={cn("italic text-muted-foreground", isReply ? "text-xs" : "text-sm")}>
+            [gelöschter kommentar]
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -71,6 +99,7 @@ export function CommentCard({
         "flex gap-2 py-2",
         isReplyTarget && "rounded-md bg-primary/5"
       )}
+      role="article"
     >
       {/* Avatar */}
       <Link
@@ -120,9 +149,9 @@ export function CommentCard({
               {formatNumber(count)} {count === 1 ? "Like" : "Likes"}
             </span>
           )}
-          {onReply && (
+          {canReply && (
             <button
-              onClick={() => onReply(comment.id, profile.username)}
+              onClick={() => onReply!(comment.id, profile.username)}
               className="font-medium hover:text-foreground"
             >
               Antworten

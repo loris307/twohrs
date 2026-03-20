@@ -105,7 +105,7 @@ src/
 ├── components/
 │   ├── auth/              # Google OAuth button, username setup form
 │   ├── layout/            # Navbar, bottom-nav, time-banner, navigation-progress, active-users-count
-│   ├── feed/              # Post card, post grid, upvote button, comment section, link preview
+│   ├── feed/              # Post card, post grid, upvote button, comment-thread, link preview
 │   ├── create/            # Image upload, create post form, OG preview
 │   ├── leaderboard/       # Podium, entry row, table, top post card, archive-tabs
 │   ├── profile/           # Profile header, stats, follow button, profile-tabs, mentions-list
@@ -116,6 +116,7 @@ src/
 │   ├── actions/           # Server Actions (auth, posts, votes, comments, follows, profile, mentions, moderation, hashtags)
 │   ├── queries/           # Data fetching (posts, comments, leaderboard, profile, private-profile, mentions)
 │   ├── hooks/             # Client hooks (useCountdown, useTimeGate, useInfiniteFeed, useNewPosts, useOnlineUsers, useUnreadMentions)
+│   ├── comments/          # Threading utilities (sort, merge, visual depth) + tests
 │   ├── utils/             # Pure utilities (cn, time, image, format, upload, magic-bytes, mentions, rate-limit, strip-exif, disposable-email, signup-guards, username, hashtags, etc.)
 │   ├── data/              # Static data (blocked-domains.json)
 │   ├── moderation/        # Content moderation (blocked-domains, check-content, nsfw, strikes)
@@ -125,7 +126,7 @@ src/
 └── middleware.ts           # Auth session refresh + rate limiting + time-gate routing
 
 supabase/
-├── migrations/            # SQL files (001-043)
+├── migrations/            # SQL files (001-048)
 ├── functions/             # Edge Function: cleanup-storage (Deno runtime — excluded from tsconfig)
 └── seed.sql               # Initial app_config values
 ```
@@ -211,7 +212,7 @@ Time window configured via env vars → `constants.ts` fallbacks → `app_config
 
 **posts:** `image_url` and `image_path` are **nullable** (text-only posts). Has `og_title`, `og_description`, `og_image`, `og_url` for link previews. Has `audio_url`, `audio_path`, `audio_duration_ms`, `audio_mime_type` for audio posts. Has `comment_count` (denormalized). Constraint: at least `image_url`, `caption`, or `audio_url` must be non-null; audio posts always require a caption.
 
-**comments:** `text` (max 500 chars), `upvote_count` (denormalized via trigger), `parent_comment_id` (nullable, one-level replies), sorted by upvotes in UI.
+**comments:** `text` (max 500 chars), `upvote_count` (denormalized via trigger), `parent_comment_id` (nullable, nested replies up to depth 12), `depth`, `root_comment_id`, `reply_count` (denormalized, all descendants), `deleted_at`/`deleted_by` (soft delete). Sorted by upvotes in UI. Soft-deleted comments remain as placeholders; `deleted_by` never exposed to clients.
 
 **mentions:** `mentioned_user_id`, `mentioning_user_id`, `post_id` (nullable), `comment_id` (nullable). Profiles have `last_mentions_seen_at` for unread tracking.
 
@@ -222,8 +223,9 @@ Time window configured via env vars → `constants.ts` fallbacks → `app_config
 ### Denormalized Counts & Triggers
 
 - `posts.upvote_count` — maintained by `handle_vote_change()` trigger on `votes`
-- `posts.comment_count` — maintained by `handle_comment_count_change()` trigger on `comments`
+- `posts.comment_count` — maintained by `handle_comment_count_change()` trigger on `comments` (INSERT/DELETE/UPDATE OF deleted_at)
 - `comments.upvote_count` — maintained by `handle_comment_vote_change()` trigger on `comment_votes`
+- `comments.reply_count` — maintained by `handle_reply_count_change()` trigger on `comments` (INSERT/UPDATE OF deleted_at), counts all non-deleted descendants
 - `profiles.total_upvotes_received` — maintained by `handle_vote_change()` trigger
 - `profiles` protected columns (`is_admin`, `moderation_strikes`, `nsfw_strikes`, `days_won`, `total_upvotes_received`, `total_posts_created`) — `protect_profile_columns` trigger (SECURITY INVOKER) prevents client-side modification
 - `toggle_vote()` — SECURITY DEFINER function for atomic vote toggle + self-vote prevention
@@ -237,7 +239,7 @@ One Edge Function: `supabase/functions/cleanup-storage/` (Deno runtime, excluded
 ## Features
 
 - **Post types:** Image + caption, text-only, link with OG preview (fetched server-side via `/api/og`), audio (in-app recorded only, max 10s, caption required, manual moderation in v1)
-- **Comments:** Collapsible, upvotable, one-level replies, max 500 chars, @mentions extracted
+- **Comments:** Threaded (up to 12 levels deep), upvotable, lazy-loaded replies, max 500 chars, @mentions extracted, soft delete with placeholder
 - **@Mentions:** Autocomplete on `@`, Realtime WebSocket for unread badge, rendered as profile links
 - **Hashtags:** Extracted from captions, clickable links, followable, searchable via `/search`
 - **Feed:** Three tabs (Live, Hot, Following). Infinite scroll, cursor-based pagination.
