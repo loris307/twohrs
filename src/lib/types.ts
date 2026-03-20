@@ -116,8 +116,20 @@ export type CommentWithAuthor = Comment & {
   has_voted: boolean;
 };
 
-export type CommentWithReplies = CommentWithAuthor & {
-  replies: CommentWithAuthor[];
+export type CommentListItem = CommentWithAuthor & {
+  root_comment_id: string;
+  depth: number;
+  reply_count: number;
+  deleted_at: string | null;
+  deleted_by: string | null;
+  is_deleted: boolean;
+};
+
+export type CommentPage = {
+  comments: CommentListItem[];
+  totalCount: number;
+  topLevelCount: number;
+  nextOffset: number | null;
 };
 
 export type TopWinner = {

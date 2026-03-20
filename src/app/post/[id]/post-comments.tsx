@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition, useCallback, useEffect } from "react";
-import { CommentCard } from "@/components/feed/comment-card";
+import { CommentThread } from "@/components/feed/comment-thread";
 import { CommentInput } from "@/components/feed/comment-input";
-import type { CommentWithReplies } from "@/lib/types";
+import { mergeUniqueCommentsById } from "@/lib/comments/threading";
+import { COMMENT_DETAIL_TOP_LEVEL_LIMIT, COMMENT_MAX_VISUAL_DEPTH_DESKTOP } from "@/lib/constants";
+import type { CommentListItem } from "@/lib/types";
 
 interface PostCommentsProps {
   postId: string;
@@ -11,21 +13,33 @@ interface PostCommentsProps {
 }
 
 export function PostComments({ postId, isAdmin }: PostCommentsProps) {
-  const [comments, setComments] = useState<CommentWithReplies[]>([]);
+  const [comments, setComments] = useState<CommentListItem[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [totalCount, setTotalCount] = useState(0);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [replyingTo, setReplyingTo] = useState<{
     commentId: string;
     username: string;
   } | null>(null);
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyTargetVersion, setReplyTargetVersion] = useState(0);
 
-  const fetchComments = useCallback(() => {
+  const loadTopLevelComments = useCallback((offset: number) => {
     startTransition(async () => {
-      const res = await fetch(`/api/comments?postId=${postId}`);
+      const res = await fetch(
+        `/api/comments?postId=${postId}&offset=${offset}&limit=${COMMENT_DETAIL_TOP_LEVEL_LIMIT}`
+      );
       if (res.ok) {
         const data = await res.json();
-        setComments(data.comments);
+        if (offset === 0) {
+          setComments(data.comments);
+        } else {
+          setComments((prev) => mergeUniqueCommentsById(prev, data.comments));
+        }
+        setTotalCount(data.totalCount);
+        setNextOffset(data.nextOffset);
         if (data.currentUserId) {
           setCurrentUserId(data.currentUserId);
         }
@@ -34,17 +48,20 @@ export function PostComments({ postId, isAdmin }: PostCommentsProps) {
     });
   }, [postId]);
 
-  // Load comments immediately on mount
   useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
+    loadTopLevelComments(0);
+  }, [loadTopLevelComments]);
 
   function handleCommentCreated() {
-    fetchComments();
+    if (replyingTo) {
+      setReplyTargetId(replyingTo.commentId);
+      setReplyTargetVersion((v) => v + 1);
+    }
+    loadTopLevelComments(0);
   }
 
   function handleCommentDeleted() {
-    fetchComments();
+    loadTopLevelComments(0);
   }
 
   function handleReply(commentId: string, username: string) {
@@ -54,12 +71,6 @@ export function PostComments({ postId, isAdmin }: PostCommentsProps) {
   function handleCancelReply() {
     setReplyingTo(null);
   }
-
-  // Total count including replies
-  const totalCount = comments.reduce(
-    (sum, c) => sum + 1 + c.replies.length,
-    0
-  );
 
   return (
     <div>
@@ -88,32 +99,29 @@ export function PostComments({ postId, isAdmin }: PostCommentsProps) {
         )}
 
         {comments.map((comment) => (
-          <div key={comment.id}>
-            <CommentCard
-              comment={comment}
-              currentUserId={currentUserId}
-              onDeleted={handleCommentDeleted}
-              onReply={handleReply}
-              isReplyTarget={replyingTo?.commentId === comment.id}
-              isAdmin={isAdmin}
-            />
-
-            {comment.replies.length > 0 && (
-              <div className="ml-8 border-l border-border pl-3">
-                {comment.replies.map((reply) => (
-                  <CommentCard
-                    key={reply.id}
-                    comment={reply}
-                    currentUserId={currentUserId}
-                    onDeleted={handleCommentDeleted}
-                    isReply
-                    isAdmin={isAdmin}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          <CommentThread
+            key={comment.id}
+            comment={comment}
+            currentUserId={currentUserId}
+            isAdmin={isAdmin}
+            visualDepth={0}
+            maxVisualDepth={COMMENT_MAX_VISUAL_DEPTH_DESKTOP}
+            onReply={handleReply}
+            onDeleted={handleCommentDeleted}
+            replyTargetId={replyTargetId}
+            replyTargetVersion={replyTargetVersion}
+          />
         ))}
+
+        {nextOffset !== null && (
+          <button
+            onClick={() => loadTopLevelComments(nextOffset)}
+            disabled={isPending}
+            className="w-full py-2 text-center text-sm font-medium text-primary hover:text-primary/80"
+          >
+            Weitere Kommentare laden
+          </button>
+        )}
       </div>
     </div>
   );

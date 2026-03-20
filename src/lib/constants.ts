@@ -44,6 +44,13 @@ export const ALLOWED_IMAGE_TYPES = [
   "image/webp",
 ] as const;
 
+export const MAX_COMMENT_THREAD_DEPTH = 12;
+export const COMMENT_PREVIEW_TOP_LEVEL_LIMIT = 3;
+export const COMMENT_DETAIL_TOP_LEVEL_LIMIT = 20;
+export const COMMENT_REPLIES_PAGE_SIZE = 5;
+export const COMMENT_MAX_VISUAL_DEPTH_MOBILE = 4;
+export const COMMENT_MAX_VISUAL_DEPTH_DESKTOP = 5;
+
 export const FEED_PAGE_SIZE = 20;
 
 export const FEED_TABS = ["live", "hot", "following"] as const;

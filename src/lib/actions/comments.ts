@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
-import { MAX_COMMENTS_PER_SESSION } from "@/lib/constants";
+import { MAX_COMMENTS_PER_SESSION, MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
 import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
 import { normalizeText } from "@/lib/utils/normalize-text";
@@ -47,6 +47,7 @@ export async function createComment(
     .from("comments")
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .gte("created_at", startOfDay.toISOString());
 
   if ((count ?? 0) >= MAX_COMMENTS_PER_SESSION) {
@@ -62,33 +63,47 @@ export async function createComment(
   }
 
   // Validate parent comment if replying
-  let parent: { id: string; post_id: string; parent_comment_id: string | null; user_id: string } | null = null;
+  const commentId = crypto.randomUUID();
+  let depth = 0;
+  let rootCommentId = commentId;
+  let parent: { id: string; post_id: string; user_id: string; depth: number; root_comment_id: string } | null = null;
+
   if (parentCommentId) {
-    const { data } = await supabase
+    const { data: parentData } = await supabase
       .from("comments")
-      .select("id, post_id, parent_comment_id, user_id")
+      .select("id, post_id, user_id, depth, root_comment_id, deleted_at")
       .eq("id", parentCommentId)
       .single();
 
-    if (!data) {
+    if (!parentData) {
       return { success: false, error: "Elternkommentar nicht gefunden" };
     }
-    if (data.post_id !== postId) {
+    if (parentData.post_id !== postId) {
       return { success: false, error: "Kommentar gehört nicht zu diesem Post" };
     }
-    if (data.parent_comment_id !== null) {
-      return { success: false, error: "Antworten auf Antworten nicht möglich" };
+    if (parentData.deleted_at) {
+      return { success: false, error: "Auf gelöschte Kommentare kann nicht geantwortet werden" };
     }
-    parent = data;
+
+    depth = parentData.depth + 1;
+    if (depth > MAX_COMMENT_THREAD_DEPTH) {
+      return { success: false, error: "Maximale Thread-Tiefe erreicht" };
+    }
+
+    rootCommentId = parentData.root_comment_id ?? parentData.id;
+    parent = parentData;
   }
 
   const { data, error } = await supabase
     .from("comments")
     .insert({
+      id: commentId,
       post_id: postId,
       user_id: user.id,
       text: parsed.data.text,
       parent_comment_id: parentCommentId ?? null,
+      depth,
+      root_comment_id: rootCommentId,
     })
     .select("id")
     .single();
@@ -136,6 +151,7 @@ export async function createComment(
   }
 
   revalidatePath("/feed");
+  revalidatePath(`/post/${postId}`);
   return { success: true, data: { id: data.id } };
 }
 
@@ -169,7 +185,7 @@ export async function deleteComment(
   // Use admin client to fetch comment (bypasses RLS/time-gate)
   const { data: comment } = await admin
     .from("comments")
-    .select("user_id")
+    .select("user_id, post_id, deleted_at")
     .eq("id", commentId)
     .single();
 
@@ -177,22 +193,31 @@ export async function deleteComment(
     return { success: false, error: "Kommentar nicht gefunden" };
   }
 
+  // Already soft-deleted — idempotent success
+  if (comment.deleted_at) {
+    return { success: true };
+  }
+
   if (comment.user_id !== user.id && !isAdmin) {
     return { success: false, error: "Nicht berechtigt" };
   }
 
-  // Admin uses admin client, owner uses regular client
-  const client = isAdmin ? admin : supabase;
-  const { error } = await client
+  // Soft delete via admin client (DELETE RLS policy removed)
+  const { error } = await admin
     .from("comments")
-    .delete()
-    .eq("id", commentId);
+    .update({
+      deleted_at: new Date().toISOString(),
+      deleted_by: user.id,
+    })
+    .eq("id", commentId)
+    .is("deleted_at", null);
 
   if (error) {
     return { success: false, error: "Löschen fehlgeschlagen" };
   }
 
   revalidatePath("/feed");
+  revalidatePath(`/post/${comment.post_id}`);
   return { success: true };
 }
 
@@ -215,6 +240,17 @@ export async function toggleCommentVote(
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  // Reject vote on soft-deleted comment
+  const { data: targetComment } = await supabase
+    .from("comments")
+    .select("deleted_at")
+    .eq("id", commentId)
+    .single();
+
+  if (!targetComment || targetComment.deleted_at) {
+    return { success: false, error: "Kommentar nicht gefunden" };
   }
 
   // Check if vote exists

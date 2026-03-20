@@ -282,7 +282,7 @@ export async function getLatestTopPost(): Promise<TopPostAllTime | null> {
     .maybeSingle();
 
   if (livePost && livePost.upvote_count > 0) {
-    // Get top 3 comments for this post
+    // Get top 3 non-deleted comments for this post (all depths)
     const { data: comments } = await supabase
       .from("comments")
       .select(
@@ -292,7 +292,7 @@ export async function getLatestTopPost(): Promise<TopPostAllTime | null> {
       `
       )
       .eq("post_id", livePost.id)
-      .is("parent_comment_id", null)
+      .is("deleted_at", null)
       .order("upvote_count", { ascending: false })
       .limit(3);
 

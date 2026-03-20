@@ -36,7 +36,7 @@ export async function GET() {
   ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", user.id).single(),
     admin.from("posts").select("*").eq("user_id", user.id),
-    admin.from("comments").select("*").eq("user_id", user.id),
+    admin.from("comments").select("id, post_id, text, upvote_count, parent_comment_id, root_comment_id, depth, reply_count, deleted_at, created_at").eq("user_id", user.id),
     admin.from("votes").select("*").eq("user_id", user.id),
     admin.from("comment_votes").select("*").eq("user_id", user.id),
     admin

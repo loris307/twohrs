@@ -5,13 +5,12 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { UpvoteButton } from "./upvote-button";
 import { ShareButton } from "./share-button";
-import { CommentCard } from "./comment-card";
+import { CommentThread } from "./comment-thread";
 import { CommentInput } from "./comment-input";
 import { formatNumber } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
-import type { CommentWithReplies } from "@/lib/types";
-
-const COMMENT_PREVIEW_LIMIT = 3;
+import { COMMENT_PREVIEW_TOP_LEVEL_LIMIT, COMMENT_MAX_VISUAL_DEPTH_MOBILE } from "@/lib/constants";
+import type { CommentListItem } from "@/lib/types";
 
 interface PostActionsProps {
   postId: string;
@@ -31,8 +30,9 @@ export function PostActions({
   isAdmin,
 }: PostActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [comments, setComments] = useState<CommentWithReplies[]>([]);
+  const [comments, setComments] = useState<CommentListItem[]>([]);
   const [count, setCount] = useState(initialCommentCount);
+  const [totalCount, setTotalCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -40,18 +40,19 @@ export function PostActions({
     commentId: string;
     username: string;
   } | null>(null);
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyTargetVersion, setReplyTargetVersion] = useState(0);
 
   const fetchComments = useCallback(() => {
     startTransition(async () => {
-      const res = await fetch(`/api/comments?postId=${postId}`);
+      const res = await fetch(
+        `/api/comments?postId=${postId}&offset=0&limit=${COMMENT_PREVIEW_TOP_LEVEL_LIMIT}`
+      );
       if (res.ok) {
         const data = await res.json();
         setComments(data.comments);
-        const total = data.comments.reduce(
-          (sum: number, c: CommentWithReplies) => sum + 1 + c.replies.length,
-          0
-        );
-        setCount(total);
+        setTotalCount(data.totalCount);
+        setCount(data.totalCount);
         if (data.currentUserId) {
           setCurrentUserId(data.currentUserId);
         }
@@ -68,6 +69,10 @@ export function PostActions({
   }
 
   function handleCommentCreated() {
+    if (replyingTo) {
+      setReplyTargetId(replyingTo.commentId);
+      setReplyTargetVersion((v) => v + 1);
+    }
     fetchComments();
     setCount((prev) => prev + 1);
   }
@@ -134,25 +139,27 @@ export function PostActions({
               </p>
             )}
 
-            {comments.slice(0, COMMENT_PREVIEW_LIMIT).map((comment) => (
-              <div key={comment.id}>
-                <CommentCard
-                  comment={comment}
-                  currentUserId={currentUserId}
-                  onDeleted={handleCommentDeleted}
-                  onReply={handleReply}
-                  isReplyTarget={replyingTo?.commentId === comment.id}
-                  isAdmin={isAdmin}
-                />
-              </div>
+            {comments.map((comment) => (
+              <CommentThread
+                key={comment.id}
+                comment={comment}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                visualDepth={0}
+                maxVisualDepth={COMMENT_MAX_VISUAL_DEPTH_MOBILE}
+                onReply={handleReply}
+                onDeleted={handleCommentDeleted}
+                replyTargetId={replyTargetId}
+                replyTargetVersion={replyTargetVersion}
+              />
             ))}
 
-            {count > Math.min(comments.length, COMMENT_PREVIEW_LIMIT) && (
+            {(totalCount > comments.length) && (
               <Link
                 href={`/post/${postId}`}
                 className="block py-2 text-center text-sm font-medium text-primary hover:text-primary/80"
               >
-                Alle {count} Kommentare ansehen
+                Alle {totalCount} Kommentare ansehen
               </Link>
             )}
           </div>
