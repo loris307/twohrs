@@ -4,6 +4,7 @@ import {
   isOwnedStoragePath,
   buildPrivateMediaUrl,
   getMediaRoutePrefix,
+  getPublicMediaCacheControl,
   matchesLatestTopPostMediaPath,
 } from "./private-media";
 
@@ -108,6 +109,18 @@ describe("buildPrivateMediaUrl", () => {
 
   it("throws on empty path", () => {
     expect(() => buildPrivateMediaUrl("memes", "")).toThrow();
+  });
+});
+
+describe("getPublicMediaCacheControl", () => {
+  it("uses a long cache for archived hall-of-fame media", () => {
+    expect(getPublicMediaCacheControl(true)).toBe("public, max-age=86400");
+  });
+
+  it("uses short revalidation for the current live top post media", () => {
+    expect(getPublicMediaCacheControl(false)).toBe(
+      "public, max-age=0, s-maxage=60, must-revalidate",
+    );
   });
 });
 

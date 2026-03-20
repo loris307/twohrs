@@ -17,6 +17,9 @@ type LatestTopPostMediaCandidate = {
   audio_path: string | null;
 };
 
+const ARCHIVED_PUBLIC_MEDIA_CACHE_CONTROL = "public, max-age=86400";
+const LIVE_TOP_POST_PUBLIC_MEDIA_CACHE_CONTROL = "public, max-age=0, s-maxage=60, must-revalidate";
+
 /**
  * Strip leading slashes and reject traversal patterns.
  * Returns the normalized path, or `null` if the path is invalid.
@@ -61,6 +64,17 @@ export function buildPrivateMediaUrl(
     throw new Error(`Invalid storage object path: ${path}`);
   }
   return `${BUCKET_PREFIX_MAP[bucket]}/${normalized}`;
+}
+
+/**
+ * Return the cache policy for publicly served media.
+ * Archived Hall-of-Fame assets can be cached for a long time; the current live
+ * top post must revalidate quickly so public access expires promptly.
+ */
+export function getPublicMediaCacheControl(isArchived: boolean): string {
+  return isArchived
+    ? ARCHIVED_PUBLIC_MEDIA_CACHE_CONTROL
+    : LIVE_TOP_POST_PUBLIC_MEDIA_CACHE_CONTROL;
 }
 
 /**
