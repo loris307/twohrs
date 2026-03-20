@@ -112,7 +112,7 @@ function LoginPageInner({ error }: { error: string | null }) {
                 href="/auth/forgot-password"
                 className="text-xs text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
               >
-                Reset per E-Mail
+                Passwort vergessen
               </Link>
             </div>
             <PasswordInput

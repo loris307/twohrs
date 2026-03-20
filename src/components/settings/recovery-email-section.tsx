@@ -126,7 +126,7 @@ export function RecoveryEmailSection({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Recovery-E-Mail</p>
+        <p className="text-sm font-medium">E-Mail</p>
         {recoveryEmailStatus === "verified_recovery_email" && !showForm && (
           <button
             onClick={() => setShowForm(true)}
@@ -157,7 +157,7 @@ export function RecoveryEmailSection({
             className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Mail className="h-4 w-4" />
-            Recovery-E-Mail hinzufügen
+            E-Mail hinzufügen
           </button>
         </div>
       )}
@@ -218,7 +218,7 @@ export function RecoveryEmailSection({
           <div className="space-y-2">
             <label htmlFor="recovery-email" className="text-sm font-medium">
               {recoveryEmailStatus === "missing_recovery_email"
-                ? "Neue Recovery-E-Mail"
+                ? "E-Mail-Adresse"
                 : "Neue E-Mail-Adresse"}
             </label>
             <input
