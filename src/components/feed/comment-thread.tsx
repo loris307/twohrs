@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Play } from "lucide-react";
 import { CommentCard } from "./comment-card";
 import { COMMENT_REPLIES_PAGE_SIZE } from "@/lib/constants";
 import { getVisualCommentDepth, mergeUniqueCommentsById } from "@/lib/comments/threading";
@@ -14,6 +15,8 @@ interface CommentThreadProps {
   maxVisualDepth: number;
   onReply: (commentId: string, username: string) => void;
   onDeleted: (commentId: string) => void;
+  replyTargetId?: string | null;
+  replyTargetVersion?: number;
 }
 
 export function CommentThread({
@@ -24,11 +27,14 @@ export function CommentThread({
   maxVisualDepth,
   onReply,
   onDeleted,
+  replyTargetId,
+  replyTargetVersion = 0,
 }: CommentThreadProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [replies, setReplies] = useState<CommentListItem[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(0);
   const [isLoading, setIsLoading] = useState(false);
+  const lastHandledVersion = useRef(0);
 
   const loadReplies = useCallback(async (offset = 0) => {
     setIsLoading(true);
@@ -50,98 +56,120 @@ export function CommentThread({
     }
   }, [comment.id]);
 
+  // Auto-expand and reload when this comment is the reply target
+  useEffect(() => {
+    if (
+      replyTargetId === comment.id &&
+      replyTargetVersion > 0 &&
+      replyTargetVersion !== lastHandledVersion.current
+    ) {
+      lastHandledVersion.current = replyTargetVersion;
+      setIsExpanded(true);
+      loadReplies(0);
+    }
+  }, [replyTargetId, replyTargetVersion, comment.id, loadReplies]);
+
   async function handleExpand() {
     if (!isExpanded) {
       await loadReplies(0);
     }
-    setIsExpanded((prev) => !prev);
+    setIsExpanded(true);
   }
 
-  // Only indent by 1 level relative to parent (not absolute depth).
-  // The parent is already indented, so we just add 1 step each time,
-  // but stop adding visual indent once we hit the cap.
   const clampedDepth = getVisualCommentDepth(visualDepth, maxVisualDepth);
-  const shouldIndent = visualDepth > 0 && clampedDepth > getVisualCommentDepth(visualDepth - 1, maxVisualDepth);
+  const parentClamped = visualDepth > 0 ? getVisualCommentDepth(visualDepth - 1, maxVisualDepth) : -1;
+  const shouldIndent = clampedDepth > parentClamped;
 
-  const hasReplies = comment.reply_count > 0;
+  const hasReplies = comment.reply_count > 0 || replies.length > 0;
 
   return (
-    <div role="article">
-      {visualDepth > 0 ? (
-        <div
-          className="border-l border-border pl-3"
-          style={shouldIndent ? { marginLeft: "0.75rem" } : undefined}
-        >
-          <CommentCard
-            comment={comment}
-            currentUserId={currentUserId}
-            onDeleted={(id) => onDeleted(id)}
-            onReply={onReply}
-            isReply
-            isAdmin={isAdmin}
-          />
-        </div>
-      ) : (
-        <CommentCard
-          comment={comment}
-          currentUserId={currentUserId}
-          onDeleted={(id) => onDeleted(id)}
-          onReply={onReply}
-          isAdmin={isAdmin}
-        />
-      )}
+    <div
+      className={visualDepth > 0 && shouldIndent ? "ml-2" : undefined}
+      role="article"
+    >
+      <CommentCard
+        comment={comment}
+        currentUserId={currentUserId}
+        onDeleted={(id) => onDeleted(id)}
+        onReply={onReply}
+        isReply={visualDepth > 0}
+        isAdmin={isAdmin}
+      />
 
-      {/* Expand/collapse button for replies */}
+      {/* Expand/collapse toggle + thread */}
       {hasReplies && !isExpanded && (
-        <div className="ml-3 pl-3">
-          <button
-            onClick={handleExpand}
-            disabled={isLoading}
-            className="py-1 text-xs font-medium text-primary hover:text-primary/80"
-          >
-            {isLoading ? "Laden..." : `${comment.reply_count} ${comment.reply_count === 1 ? "Antwort" : "Antworten"} anzeigen`}
-          </button>
-        </div>
+        <button
+          onClick={handleExpand}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border/80">
+            <Play className="h-2 w-2 fill-current" />
+          </span>
+          <span>
+            {isLoading
+              ? "laden..."
+              : `${comment.reply_count} ${comment.reply_count === 1 ? "antwort" : "antworten"} anzeigen`}
+          </span>
+        </button>
       )}
 
       {hasReplies && isExpanded && (
-        <div>
-          <div className="ml-3 pl-3">
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              Antworten einklappen
-            </button>
-          </div>
+        <div className="relative">
+          {/* Triangle-in-circle collapse button — connects to thread line */}
+          <button
+            type="button"
+            onClick={() => setIsExpanded(false)}
+            className="relative z-10 flex items-center gap-1.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border/80 bg-background">
+              <Play className="h-2 w-2 rotate-90 fill-current" />
+            </span>
+          </button>
 
-          {replies.map((reply) => (
-            <CommentThread
-              key={reply.id}
-              comment={reply}
-              currentUserId={currentUserId}
-              isAdmin={isAdmin}
-              visualDepth={visualDepth + 1}
-              maxVisualDepth={maxVisualDepth}
-              onReply={onReply}
-              onDeleted={(id) => {
-                loadReplies(0);
-                onDeleted(id);
-              }}
-            />
-          ))}
+          {/* Clickable vertical thread line — collapse on click */}
+          <button
+            type="button"
+            onClick={() => setIsExpanded(false)}
+            className="group absolute left-[8px] top-[22px] bottom-0 w-4 -translate-x-1/2 cursor-pointer"
+            aria-label="Antworten einklappen"
+          >
+            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 rounded-full bg-border/50 transition-colors group-hover:bg-primary" />
+          </button>
 
-          {nextOffset !== null && (
-            <div className="ml-3 pl-3">
+          {/* Replies container */}
+          <div className="pl-3">
+            {replies.map((reply) => (
+              <CommentThread
+                key={reply.id}
+                comment={reply}
+                currentUserId={currentUserId}
+                isAdmin={isAdmin}
+                visualDepth={visualDepth + 1}
+                maxVisualDepth={maxVisualDepth}
+                onReply={onReply}
+                onDeleted={(id) => {
+                  loadReplies(0);
+                  onDeleted(id);
+                }}
+                replyTargetId={replyTargetId}
+                replyTargetVersion={replyTargetVersion}
+              />
+            ))}
+
+            {nextOffset !== null && (
               <button
                 onClick={() => loadReplies(nextOffset)}
                 disabled={isLoading}
-                className="py-1 text-xs font-medium text-primary hover:text-primary/80"
+                className="flex items-center gap-1.5 py-1 text-xs text-muted-foreground hover:text-foreground"
               >
-                {isLoading ? "Laden..." : "Weitere Antworten laden"}
+                <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border/80">
+                  <Play className="h-2 w-2 fill-current" />
+                </span>
+                <span>{isLoading ? "laden..." : "weitere antworten laden"}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -52,6 +52,17 @@ WHERE parent_comment_id IS NOT NULL;
 ALTER TABLE public.comments
   ALTER COLUMN root_comment_id SET NOT NULL;
 
+-- Backfill reply_count for existing parents (only 1-level deep replies exist pre-migration)
+UPDATE public.comments p
+SET reply_count = sub.cnt
+FROM (
+  SELECT parent_comment_id, COUNT(*)::integer AS cnt
+  FROM public.comments
+  WHERE parent_comment_id IS NOT NULL
+  GROUP BY parent_comment_id
+) sub
+WHERE p.id = sub.parent_comment_id;
+
 -- 4. Trigger for reply_count (increment and decrement)
 CREATE OR REPLACE FUNCTION public.handle_reply_count_change()
 RETURNS trigger

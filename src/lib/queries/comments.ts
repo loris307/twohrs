@@ -82,7 +82,7 @@ export async function getTopLevelCommentsPage(
     comments: enriched,
     totalCount: allCount ?? 0,
     topLevelCount: topLevelCount ?? 0,
-    nextOffset: (comments?.length ?? 0) < limit ? null : offset + limit,
+    nextOffset: offset + limit < (topLevelCount ?? 0) ? offset + limit : null,
   };
 }
 
@@ -112,6 +112,6 @@ export async function getCommentRepliesPage(
     comments: enriched,
     totalCount: count ?? 0,
     topLevelCount: count ?? 0,
-    nextOffset: (comments?.length ?? 0) < limit ? null : offset + limit,
+    nextOffset: offset + limit < (count ?? 0) ? offset + limit : null,
   };
 }
