@@ -47,7 +47,7 @@ export async function GET(
     const { data: post } = await supabase
       .from("posts")
       .select(
-        "id, caption, image_url, audio_url, upvote_count, comment_count, og_title, og_url, profiles!posts_user_id_fkey (username, display_name, avatar_url)"
+        "id, caption, image_url, image_path, audio_url, upvote_count, comment_count, og_title, og_url, profiles!posts_user_id_fkey (username, display_name, avatar_url)"
       )
       .eq("id", id)
       .single();
@@ -70,24 +70,42 @@ export async function GET(
     const displayName = profile?.display_name || profile?.username || "twohrs";
     const truncated = caption.length > 120 ? caption.slice(0, 117) + "..." : caption;
     const isAudioPost = !!post?.audio_url;
-    const hasImage = !!post?.image_url && !isAudioPost;
+    const hasImage = (!!post?.image_url || !!post?.image_path) && !isAudioPost;
 
     // Fetch post image if available (skip for audio posts)
     let imageDataUrl: string | null = null;
-    if (hasImage && post?.image_url) {
+    if (hasImage) {
       try {
-        const imgRes = await fetch(post.image_url);
-        if (imgRes.ok) {
-          const buf = await imgRes.arrayBuffer();
-          if (buf.byteLength < 2 * 1024 * 1024) {
-            const bytes = new Uint8Array(buf);
-            let binary = "";
-            for (let i = 0; i < bytes.byteLength; i++) {
-              binary += String.fromCharCode(bytes[i]);
-            }
-            const ct = imgRes.headers.get("content-type") || "image/jpeg";
-            imageDataUrl = `data:${ct};base64,${btoa(binary)}`;
+        let imageBytes: ArrayBuffer | null = null;
+        let ct = "image/jpeg";
+
+        // Prefer image_path: download directly from Storage
+        if (post?.image_path) {
+          const { data } = await supabase.storage.from("memes").download(post.image_path);
+          if (data) {
+            imageBytes = await data.arrayBuffer();
+            const ext = post.image_path.split(".").pop()?.toLowerCase() ?? "";
+            const mimeMap: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
+            ct = mimeMap[ext] || "image/jpeg";
           }
+        }
+
+        // Fallback to image_url for legacy rows (only external URLs, skip /media/ proxy URLs)
+        if (!imageBytes && post?.image_url && !post.image_url.startsWith("/media/")) {
+          const imgRes = await fetch(post.image_url);
+          if (imgRes.ok) {
+            imageBytes = await imgRes.arrayBuffer();
+            ct = imgRes.headers.get("content-type") || "image/jpeg";
+          }
+        }
+
+        if (imageBytes && imageBytes.byteLength < 2 * 1024 * 1024) {
+          const bytes = new Uint8Array(imageBytes);
+          let binary = "";
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          imageDataUrl = `data:${ct};base64,${btoa(binary)}`;
         }
       } catch {
         // skip image

@@ -4,6 +4,7 @@ import { ArrowBigUp, MessageCircle } from "lucide-react";
 import { AudioPlayer } from "@/components/shared/audio-player";
 import { formatNumber } from "@/lib/utils/format";
 import { profilePath } from "@/lib/utils/profile-path";
+import { buildPrivateMediaUrl } from "@/lib/utils/private-media";
 import type { TopPostAllTime } from "@/lib/types";
 
 interface TopPostCardProps {
@@ -13,7 +14,16 @@ interface TopPostCardProps {
 
 export function TopPostCard({ post, rank }: TopPostCardProps) {
   const profile = post.profiles;
-  const isGif = post.image_url?.toLowerCase().includes(".gif") ?? false;
+
+  // Prefer image_path (private media proxy) over legacy image_url
+  const resolvedImageUrl = post.image_path
+    ? buildPrivateMediaUrl("memes", post.image_path)
+    : post.image_url;
+  const resolvedAudioUrl = post.audio_path
+    ? buildPrivateMediaUrl("audio-posts", post.audio_path)
+    : post.audio_url;
+
+  const isGif = resolvedImageUrl?.toLowerCase().includes(".gif") ?? false;
 
   const formattedDate = new Date(post.date).toLocaleDateString("de-DE", {
     day: "numeric",
@@ -53,12 +63,12 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
         </span>
       </div>
 
-      {post.audio_url ? (
-        <AudioPlayer src={post.audio_url} durationMs={post.audio_duration_ms} />
-      ) : post.image_url ? (
+      {resolvedAudioUrl ? (
+        <AudioPlayer src={resolvedAudioUrl} durationMs={post.audio_duration_ms} />
+      ) : resolvedImageUrl ? (
         <div className="relative w-full">
           <Image
-            src={post.image_url}
+            src={resolvedImageUrl}
             alt={post.caption || "Top Meme"}
             width={800}
             height={600}

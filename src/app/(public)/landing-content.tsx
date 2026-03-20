@@ -8,6 +8,7 @@ import { CountdownTimer } from "@/components/countdown/countdown-timer";
 import { useTimeGate } from "@/lib/hooks/use-time-gate";
 import { formatNumber } from "@/lib/utils/format";
 import { renderTextWithMentions } from "@/lib/utils/render-mentions";
+import { buildPrivateMediaUrl } from "@/lib/utils/private-media";
 import type { TopPostAllTime } from "@/lib/types";
 
 interface LandingContentProps {
@@ -19,6 +20,14 @@ interface LandingContentProps {
 
 export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, userCount = 0 }: LandingContentProps) {
   const { isOpen } = useTimeGate();
+
+  const resolvedTopPostImageUrl = yesterdayTopPost?.image_path
+    ? buildPrivateMediaUrl("memes", yesterdayTopPost.image_path)
+    : yesterdayTopPost?.image_url ?? null;
+  const resolvedTopPostAudioUrl = yesterdayTopPost?.audio_path
+    ? buildPrivateMediaUrl("audio-posts", yesterdayTopPost.audio_path)
+    : yesterdayTopPost?.audio_url ?? null;
+
   const hasTopPostOgData = !!(
     yesterdayTopPost?.og_url &&
     (yesterdayTopPost.og_title || yesterdayTopPost.og_description || yesterdayTopPost.og_image)
@@ -165,12 +174,12 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
                 </span>
               </div>
 
-              {yesterdayTopPost.audio_url ? (
-                <AudioPlayer src={yesterdayTopPost.audio_url} durationMs={yesterdayTopPost.audio_duration_ms} />
-              ) : yesterdayTopPost.image_url ? (
+              {resolvedTopPostAudioUrl ? (
+                <AudioPlayer src={resolvedTopPostAudioUrl} durationMs={yesterdayTopPost.audio_duration_ms} />
+              ) : resolvedTopPostImageUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={yesterdayTopPost.image_url}
+                  src={resolvedTopPostImageUrl}
                   alt={yesterdayTopPost.caption || "Top Post"}
                   className="w-full object-contain"
                   style={{ maxHeight: "400px" }}
