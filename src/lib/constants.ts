@@ -1,3 +1,15 @@
+/**
+ * Trusted base URL for auth redirects (email links, callbacks).
+ * Uses VERCEL_PROJECT_PRODUCTION_URL (auto-set by Vercel) or falls back to twohrs.com.
+ */
+export function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "https://twohrs.com";
+}
+
 export const OPEN_HOUR = Number(process.env.NEXT_PUBLIC_OPEN_HOUR ?? 20);
 export const OPEN_MINUTE = 0;
 export const CLOSE_HOUR = Number(process.env.NEXT_PUBLIC_CLOSE_HOUR ?? 22);

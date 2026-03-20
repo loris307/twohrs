@@ -25,6 +25,8 @@ import {
 import { signOut } from "@/lib/actions/auth";
 import { PasswordRequirements } from "@/components/shared/password-requirements";
 import { PasswordInput } from "@/components/shared/password-input";
+import { RecoveryEmailSection } from "@/components/settings/recovery-email-section";
+import type { RecoveryEmailStatus } from "@/lib/utils/auth-email";
 
 interface SettingsFormProps {
   initialDisplayName: string;
@@ -32,6 +34,8 @@ interface SettingsFormProps {
   avatarUrl: string | null;
   userEmail: string | null;
   username: string;
+  recoveryEmailStatus: RecoveryEmailStatus;
+  pendingEmail: string | null;
 }
 
 export function SettingsForm({
@@ -40,6 +44,8 @@ export function SettingsForm({
   avatarUrl,
   userEmail,
   username,
+  recoveryEmailStatus,
+  pendingEmail,
 }: SettingsFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -292,12 +298,12 @@ export function SettingsForm({
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Konto</h2>
 
-        {userEmail && (
-          <div className="space-y-1">
-            <p className="text-sm font-medium">E-Mail</p>
-            <p className="text-sm text-muted-foreground">{userEmail}</p>
-          </div>
-        )}
+        {/* Recovery Email */}
+        <RecoveryEmailSection
+          recoveryEmailStatus={recoveryEmailStatus}
+          visibleEmail={userEmail}
+          pendingEmail={pendingEmail}
+        />
 
         {/* Password */}
         <div className="space-y-2">
