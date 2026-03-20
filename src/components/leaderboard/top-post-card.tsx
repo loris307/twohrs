@@ -24,6 +24,7 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
     : post.audio_url;
 
   const isGif = resolvedImageUrl?.toLowerCase().includes(".gif") ?? false;
+  const isProxied = resolvedImageUrl?.startsWith("/media/") ?? false;
 
   const formattedDate = new Date(post.date).toLocaleDateString("de-DE", {
     day: "numeric",
@@ -74,7 +75,7 @@ export function TopPostCard({ post, rank }: TopPostCardProps) {
             height={600}
             className="w-full object-contain"
             style={{ maxHeight: "500px" }}
-            unoptimized={isGif}
+            unoptimized={isGif || isProxied}
           />
         </div>
       ) : null}
