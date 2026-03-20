@@ -12,7 +12,7 @@ import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { detectAudioMime } from "@/lib/utils/audio-magic-bytes";
 import { uuidSchema, createAudioPostSchema } from "@/lib/validations";
-import { isOwnedStoragePath } from "@/lib/utils/private-media";
+import { isOwnedStoragePath, buildPrivateMediaUrl } from "@/lib/utils/private-media";
 import type { ActionResult } from "@/lib/types";
 
 export async function createPost(formData: FormData): Promise<ActionResult> {
@@ -136,7 +136,7 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
       return { success: false, error: "Bild-Upload fehlgeschlagen" };
     }
 
-    publicUrl = supabase.storage.from("memes").getPublicUrl(fileName).data.publicUrl;
+    publicUrl = buildPrivateMediaUrl("memes", fileName);
   }
 
   // Create post in database
@@ -277,7 +277,7 @@ export async function createPostRecord(
       return { success: false, error: "Ungültiger Dateityp. Nur JPEG, PNG, GIF und WebP erlaubt." };
     }
 
-    publicUrl = supabase.storage.from("memes").getPublicUrl(ownedImagePath).data.publicUrl;
+    publicUrl = buildPrivateMediaUrl("memes", ownedImagePath);
   }
 
   const { checkPostContent } = await import("@/lib/moderation/check-content");
@@ -463,8 +463,8 @@ export async function createAudioPostRecord(
     return { success: false, error: "Audio-Datei ist zu groß" };
   }
 
-  // Derive public URL server-side (never trust client-supplied URL)
-  const audioUrl = supabase.storage.from("audio-posts").getPublicUrl(normalizedAudioPath).data.publicUrl;
+  // Derive proxy URL server-side (never trust client-supplied URL)
+  const audioUrl = buildPrivateMediaUrl("audio-posts", normalizedAudioPath);
 
   // Content moderation on caption (no auto-moderation for audio content in v1)
   const { checkPostContent } = await import("@/lib/moderation/check-content");

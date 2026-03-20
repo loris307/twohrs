@@ -1,24 +1,9 @@
-import { createClient } from "@/lib/supabase/client";
-import { getSupabaseUrl } from "@/lib/supabase/public-env";
-
 export async function uploadImageWithProgress(
   file: File,
   onProgress: (percent: number) => void
-): Promise<{ imageUrl: string; imagePath: string }> {
-  const supabase = createClient();
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    throw new Error("Nicht eingeloggt");
-  }
-
-  const fileExt = file.name.split(".").pop() || "jpg";
-  const fileName = `${session.user.id}/${crypto.randomUUID()}.${fileExt}`;
-
-  const url = `${getSupabaseUrl()}/storage/v1/object/memes/${fileName}`;
+): Promise<{ imagePath: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -31,18 +16,19 @@ export async function uploadImageWithProgress(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("memes").getPublicUrl(fileName);
-
-        resolve({ imageUrl: publicUrl, imagePath: fileName });
+        try {
+          const body = JSON.parse(xhr.responseText);
+          resolve({ imagePath: body.imagePath });
+        } catch {
+          reject(new Error("Ungültige Server-Antwort"));
+        }
       } else {
         let message = "Upload fehlgeschlagen";
         try {
           const body = JSON.parse(xhr.responseText);
-          if (body.message) message = body.message;
+          if (body.error) message = body.error;
         } catch {
-          // ignore parse error
+          // ignore
         }
         reject(new Error(message));
       }
@@ -50,9 +36,7 @@ export async function uploadImageWithProgress(
 
     xhr.onerror = () => reject(new Error("Netzwerkfehler beim Upload"));
 
-    xhr.open("POST", url);
-    xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
-    xhr.setRequestHeader("x-upsert", "false");
-    xhr.send(file);
+    xhr.open("POST", "/api/uploads/image");
+    xhr.send(formData);
   });
 }
