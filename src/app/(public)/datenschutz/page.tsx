@@ -141,6 +141,14 @@ export default function DatenschutzPage() {
               Ein Passwort wird bei der Google-Anmeldung nicht bei uns gespeichert.
             </p>
 
+            <p>
+              Nach der Registrierung kannst du in den Einstellungen optional eine{" "}
+              <strong className="text-foreground">E-Mail-Adresse hinzufügen oder ändern</strong>,
+              um die Passwort-Zurücksetzung zu ermöglichen. Die neue Adresse wird
+              per Bestätigungsmail verifiziert. Bis zur Bestätigung wird sie als
+              ausstehend gespeichert.
+            </p>
+
             <p>Zusätzlich kannst du optional angeben:</p>
             <ul className="list-disc space-y-1 pl-6">
               <li>Profilbild (Avatar)</li>
@@ -711,12 +719,13 @@ export default function DatenschutzPage() {
               12. E-Mail-Kommunikation
             </h2>
             <p>
-              Wir senden ausschließlich transaktionale E-Mails an deine bei der
-              Registrierung angegebene E-Mail-Adresse:
+              Wir senden ausschließlich transaktionale E-Mails an deine
+              hinterlegte E-Mail-Adresse:
             </p>
             <ul className="list-disc space-y-1 pl-6">
-              <li>Passwort-Zurücksetzung</li>
               <li>E-Mail-Bestätigung bei Registrierung</li>
+              <li>E-Mail-Bestätigung bei Änderung oder Hinzufügen einer E-Mail-Adresse</li>
+              <li>Passwort-Zurücksetzung</li>
             </ul>
             <p>
               Wir versenden keine Werbe-E-Mails oder Newsletter. Die E-Mails
