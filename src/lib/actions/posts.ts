@@ -12,16 +12,8 @@ import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { detectAudioMime } from "@/lib/utils/audio-magic-bytes";
 import { uuidSchema, createAudioPostSchema } from "@/lib/validations";
+import { isOwnedStoragePath } from "@/lib/utils/private-media";
 import type { ActionResult } from "@/lib/types";
-
-function isOwnedStoragePath(path: string, userId: string): boolean {
-  const normalizedPath = path.replace(/^\/+/, "");
-  return (
-    normalizedPath.startsWith(`${userId}/`) &&
-    !normalizedPath.includes("..") &&
-    !normalizedPath.includes("\\")
-  );
-}
 
 export async function createPost(formData: FormData): Promise<ActionResult> {
   // Time-gate check (Server Action layer)
