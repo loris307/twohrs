@@ -71,7 +71,7 @@ export async function middleware(request: NextRequest) {
       "unknown";
     const limit = getRateLimitForPath(pathname);
     const key = `${ip}:${pathname.split("/").slice(0, 4).join("/")}`;
-    const result = checkRateLimit(key, limit);
+    const result = await checkRateLimit(key, limit);
 
     if (!result.allowed) {
       return new NextResponse("Too Many Requests", { status: 429 });

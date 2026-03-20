@@ -287,7 +287,7 @@ export async function setRecoveryEmail(formData: FormData): Promise<ActionResult
   }
 
   // Rate-limit: max 3 email change requests per hour per user
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     `auth:recovery-email:${user.id}`,
     RECOVERY_EMAIL_RATE_LIMIT_MAX,
     RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS
@@ -355,7 +355,7 @@ export async function resendRecoveryEmail(formData: FormData): Promise<ActionRes
   }
 
   // Shares rate-limit bucket with setRecoveryEmail
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     `auth:recovery-email:${user.id}`,
     RECOVERY_EMAIL_RATE_LIMIT_MAX,
     RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS

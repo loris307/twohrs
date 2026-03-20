@@ -1,46 +1,15 @@
 /**
- * In-memory sliding-window rate limiter.
- * Resets on Vercel cold starts — acceptable for current traffic.
+ * Shared Postgres-backed rate limiter.
+ * Calls the check_rate_limit RPC via Supabase REST API (service_role).
+ * Fails open on any error (network, timeout, missing config).
  */
-
-interface RateLimitEntry {
-  timestamps: number[];
-}
-
-const store = new Map<string, RateLimitEntry>();
-
-// Max number of unique keys in the store to prevent memory exhaustion
-// from attackers cycling through many IPs
-const MAX_STORE_SIZE = 10_000;
-
-// Cleanup old entries every 5 minutes to prevent memory leaks
-const CLEANUP_INTERVAL = 5 * 60 * 1000;
-let lastCleanup = Date.now();
-
-function cleanup(windowMs: number) {
-  const now = Date.now();
-  if (now - lastCleanup < CLEANUP_INTERVAL) return;
-  lastCleanup = now;
-
-  const cutoff = now - windowMs;
-  for (const [key, entry] of store) {
-    entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
-    if (entry.timestamps.length === 0) {
-      store.delete(key);
-    }
-  }
-
-  // If still over limit after cleanup, clear everything
-  // (entries expire anyway, so this is safe)
-  if (store.size > MAX_STORE_SIZE) {
-    store.clear();
-  }
-}
 
 export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
 }
+
+const RPC_TIMEOUT_MS = 5_000;
 
 /**
  * Check if a request is within the rate limit.
@@ -48,35 +17,60 @@ export interface RateLimitResult {
  * @param limit - Max requests allowed in the window
  * @param windowMs - Time window in milliseconds (default: 60s)
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number = 60_000
-): RateLimitResult {
-  cleanup(windowMs);
+): Promise<RateLimitResult> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const now = Date.now();
-  const cutoff = now - windowMs;
+  if (!supabaseUrl || !serviceRoleKey) {
+    // No config — fail open
+    return { allowed: true, remaining: limit };
+  }
 
-  let entry = store.get(key);
-  if (!entry) {
-    // Evict all entries if store is at capacity (prevents memory exhaustion)
-    if (store.size >= MAX_STORE_SIZE) {
-      store.clear();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/rpc/check_rate_limit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({
+        p_scope_key: key,
+        p_limit: limit,
+        p_window_ms: windowMs,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      console.error("Rate limit RPC failed:", res.status, await res.text());
+      return { allowed: true, remaining: limit }; // fail open
     }
-    entry = { timestamps: [] };
-    store.set(key, entry);
+
+    const data = await res.json();
+    // Supabase returns the SETOF result as an array for RPC calls
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) {
+      return { allowed: true, remaining: limit }; // fail open
+    }
+
+    return {
+      allowed: row.allowed,
+      remaining: row.remaining,
+    };
+  } catch {
+    console.error("Rate limit RPC error (timeout or network)");
+    return { allowed: true, remaining: limit }; // fail open
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  // Remove timestamps outside the window
-  entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
-
-  if (entry.timestamps.length >= limit) {
-    return { allowed: false, remaining: 0 };
-  }
-
-  entry.timestamps.push(now);
-  return { allowed: true, remaining: limit - entry.timestamps.length };
 }
 
 /** Per-route rate limit configuration */

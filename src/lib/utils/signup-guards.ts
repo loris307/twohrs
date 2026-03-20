@@ -120,11 +120,11 @@ export async function runSignupGuards(
     };
   }
 
-  // 2. Rate limits (cheap, in-memory — before any DB call)
+  // 2. Rate limits (shared Postgres — before any other DB call)
   const emailHash = hashNormalizedAuthEmail(normalizedEmail);
   const clientIp = getClientIp(headersList);
 
-  const signupIpLimit = checkRateLimit(
+  const signupIpLimit = await checkRateLimit(
     `auth:signup:ip:${clientIp}`,
     readPositiveIntEnv("SIGNUP_RATE_LIMIT_MAX", DEFAULT_SIGNUP_RATE_LIMIT_MAX),
     readPositiveIntEnv(
@@ -142,7 +142,7 @@ export async function runSignupGuards(
     };
   }
 
-  const signupEmailCooldown = checkRateLimit(
+  const signupEmailCooldown = await checkRateLimit(
     `auth:signup:email:${emailHash}`,
     1,
     readPositiveIntEnv(
