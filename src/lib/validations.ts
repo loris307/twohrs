@@ -146,6 +146,10 @@ export const createAudioPostSchema = z.object({
     ),
 });
 
+export const deleteAccountSchema = z.object({
+  currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
+});
+
 export function validateImageFile(file: File): string | null {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type as (typeof ALLOWED_IMAGE_TYPES)[number])) {
     return "Nur JPEG, PNG, GIF und WebP Bilder sind erlaubt";

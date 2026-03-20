@@ -265,13 +265,13 @@ export async function requestPasswordReset(formData: FormData): Promise<ActionRe
   const headersList = await headers();
   const clientIp = getClientIp(headersList);
 
-  const ipLimit = checkRateLimit(`auth:reset:ip:${clientIp}`, 5, 60 * 60 * 1000);
+  const ipLimit = await checkRateLimit(`auth:reset:ip:${clientIp}`, 5, 60 * 60 * 1000);
   if (!ipLimit.allowed) {
     // Still return generic success to prevent enumeration
     return { success: true };
   }
 
-  const emailLimit = checkRateLimit(`auth:reset:email:${parsedEmail.data}`, 3, 60 * 60 * 1000);
+  const emailLimit = await checkRateLimit(`auth:reset:email:${parsedEmail.data}`, 3, 60 * 60 * 1000);
   if (!emailLimit.allowed) {
     return { success: true };
   }

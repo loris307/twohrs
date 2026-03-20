@@ -56,6 +56,7 @@ export function SettingsForm({
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
   const [pwCaptchaToken, setPwCaptchaToken] = useState<string | null>(null);
   const pwTurnstileRef = useRef<TurnstileInstance | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -167,7 +168,9 @@ export function SettingsForm({
 
   async function handleDelete() {
     setIsDeleting(true);
-    const result = await deleteAccount();
+    const formData = new FormData();
+    formData.append("currentPassword", deletePassword);
+    const result = await deleteAccount(formData);
 
     if (result.success) {
       router.push("/");
@@ -426,16 +429,27 @@ export function SettingsForm({
               <li>Leaderboard-Einträge und Hall of Fame</li>
               <li>Alle Posts, Kommentare und Votes</li>
             </ul>
+            {recoveryEmailStatus === "oauth_only" ? (
+              <p className="text-sm text-muted-foreground">
+                Account-Löschung ist aktuell nur für Accounts mit Passwort verfügbar. OAuth-only Accounts können noch nicht gelöscht werden.
+              </p>
+            ) : (
+              <PasswordInput
+                placeholder="aktuelles passwort"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+              />
+            )}
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                disabled={isDeleting}
+                disabled={isDeleting || recoveryEmailStatus === "oauth_only" || deletePassword.trim() === ""}
                 className="inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
               >
                 {isDeleting ? "Wird gelöscht..." : "Ja, Account löschen"}
               </button>
               <button
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); }}
                 className="inline-flex h-9 items-center justify-center rounded-md border border-border px-4 text-sm font-medium hover:bg-accent"
               >
                 Abbrechen

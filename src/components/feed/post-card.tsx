@@ -25,6 +25,7 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
   const isOwn = currentUserId === post.user_id;
   const showFollow = !!currentUserId && !isOwn && !post.is_followed;
   const isGif = post.image_url?.toLowerCase().includes(".gif") ?? false;
+  const isProxied = post.image_url?.startsWith("/media/") ?? false;
   const hasOgData = post.og_url && (post.og_title || post.og_description || post.og_image);
 
   const cardContent = (
@@ -85,7 +86,7 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
             height={600}
             className="w-full object-contain"
             style={{ maxHeight: "600px" }}
-            unoptimized={isGif}
+            unoptimized={isGif || isProxied}
           />
         </div>
       ) : hasOgData ? (

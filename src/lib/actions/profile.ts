@@ -7,6 +7,7 @@ import {
   updateProfileSchema,
   changePasswordSchema,
   setRecoveryEmailSchema,
+  deleteAccountSchema,
 } from "@/lib/validations";
 import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
@@ -286,7 +287,7 @@ export async function setRecoveryEmail(formData: FormData): Promise<ActionResult
   }
 
   // Rate-limit: max 3 email change requests per hour per user
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     `auth:recovery-email:${user.id}`,
     RECOVERY_EMAIL_RATE_LIMIT_MAX,
     RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS
@@ -354,7 +355,7 @@ export async function resendRecoveryEmail(formData: FormData): Promise<ActionRes
   }
 
   // Shares rate-limit bucket with setRecoveryEmail
-  const rateLimit = checkRateLimit(
+  const rateLimit = await checkRateLimit(
     `auth:recovery-email:${user.id}`,
     RECOVERY_EMAIL_RATE_LIMIT_MAX,
     RECOVERY_EMAIL_RATE_LIMIT_WINDOW_MS
@@ -409,7 +410,14 @@ export async function cancelRecoveryEmail(): Promise<ActionResult> {
   return { success: true };
 }
 
-export async function deleteAccount(): Promise<ActionResult> {
+export async function deleteAccount(formData: FormData): Promise<ActionResult> {
+  const parsed = deleteAccountSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+  });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0]?.message || "Ungültige Eingabe" };
+  }
+
   const supabase = await createClient();
 
   const {
@@ -418,6 +426,23 @@ export async function deleteAccount(): Promise<ActionResult> {
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  if (!hasEmailIdentity(user)) {
+    return { success: false, error: "Account-Löschung ist nur für Accounts mit Passwort verfügbar" };
+  }
+
+  // Verify current password before proceeding
+  const { createClient: createAnonClient } = await import("@supabase/supabase-js");
+  const verifyClient = createAnonClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { error: signInError } = await verifyClient.auth.signInWithPassword({
+    email: user.email!,
+    password: parsed.data.currentPassword,
+  });
+  if (signInError) {
+    return { success: false, error: "Aktuelles Passwort ist falsch" };
   }
 
   const { createAdminClient } = await import("@/lib/supabase/admin");
