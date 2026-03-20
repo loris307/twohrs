@@ -443,7 +443,7 @@ export function SettingsForm({
             <div className="flex gap-3">
               <button
                 onClick={handleDelete}
-                disabled={isDeleting || (recoveryEmailStatus !== "oauth_only" && deletePassword.trim() === "")}
+                disabled={isDeleting || recoveryEmailStatus === "oauth_only" || deletePassword.trim() === ""}
                 className="inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
               >
                 {isDeleting ? "Wird gelöscht..." : "Ja, Account löschen"}

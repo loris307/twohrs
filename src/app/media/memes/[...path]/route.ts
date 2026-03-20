@@ -62,6 +62,18 @@ export async function GET(
     return NextResponse.json({ error: "App ist geschlossen" }, { status: 403 });
   }
 
+  // Verify the path is referenced by an actual post (prevents guessing arbitrary storage keys)
+  const { data: post } = await admin
+    .from("posts")
+    .select("id")
+    .eq("image_path", objectPath)
+    .limit(1)
+    .maybeSingle();
+
+  if (!post) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { data, error } = await admin.storage.from("memes").download(objectPath);
   if (error || !data) {
     console.error("Media proxy: file not found in storage", objectPath);
