@@ -7,6 +7,7 @@ import { LinkPreview } from "./link-preview";
 import { PostCardLink } from "./post-card-link";
 import { PostFollowButton } from "./post-follow-button";
 import { AdminDeleteButton } from "./admin-delete-button";
+import { FeedImageLightbox } from "./feed-image-lightbox";
 import { AudioPlayer } from "@/components/shared/audio-player";
 import { formatRelativeTime } from "@/lib/utils/format";
 import { profilePath } from "@/lib/utils/profile-path";
@@ -79,14 +80,14 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
         <AudioPlayer src={post.audio_url} durationMs={post.audio_duration_ms} />
       ) : post.image_url ? (
         <div className="relative w-full overflow-hidden">
-          <Image
+          <FeedImageLightbox
             src={post.image_url}
             alt={post.caption || "Meme"}
             width={800}
             height={600}
             className="w-full object-contain"
-            style={{ maxHeight: "600px" }}
             unoptimized={isGif || isProxied}
+            style={{ maxHeight: "600px" }}
           />
         </div>
       ) : hasOgData ? (
