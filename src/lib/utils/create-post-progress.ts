@@ -35,5 +35,5 @@ export function advanceVisualUploadProgress(progress: number): number {
     return Math.min(normalized + 1, MAX_DISPLAY_PROGRESS_BEFORE_COMPLETE);
   }
 
-  return MAX_DISPLAY_PROGRESS_BEFORE_COMPLETE;
+  return normalized;
 }

@@ -32,7 +32,7 @@ describe("advanceVisualUploadProgress", () => {
     expect(advanceVisualUploadProgress(90)).toBe(91);
     expect(advanceVisualUploadProgress(96)).toBe(97);
     expect(advanceVisualUploadProgress(97)).toBe(97);
-    expect(advanceVisualUploadProgress(98)).toBe(97);
-    expect(advanceVisualUploadProgress(99)).toBe(97);
+    expect(advanceVisualUploadProgress(98)).toBe(98);
+    expect(advanceVisualUploadProgress(99)).toBe(99);
   });
 });

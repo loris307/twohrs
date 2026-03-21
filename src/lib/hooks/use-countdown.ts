@@ -11,7 +11,7 @@ export const INITIAL_COUNTDOWN = {
 };
 
 export function useCountdown() {
-  const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN);
+  const [countdown, setCountdown] = useState(() => getCountdownToOpen());
 
   useEffect(() => {
     setCountdown(getCountdownToOpen());
