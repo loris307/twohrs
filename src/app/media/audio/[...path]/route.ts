@@ -14,6 +14,109 @@ const AUDIO_CONTENT_TYPE_MAP: Record<string, string> = {
   m4a: "audio/mp4",
 };
 
+type ByteRangeResolution =
+  | { kind: "full" }
+  | { kind: "partial"; start: number; end: number }
+  | { kind: "invalid" };
+
+function resolveByteRange(rangeHeader: string | null, size: number): ByteRangeResolution {
+  if (!rangeHeader) {
+    return { kind: "full" };
+  }
+
+  if (size <= 0 || !rangeHeader.startsWith("bytes=")) {
+    return { kind: "invalid" };
+  }
+
+  const rangeSpec = rangeHeader.slice("bytes=".length).trim();
+  if (!rangeSpec || rangeSpec.includes(",")) {
+    return { kind: "invalid" };
+  }
+
+  const [startStr, endStr] = rangeSpec.split("-", 2);
+  if (!startStr && !endStr) {
+    return { kind: "invalid" };
+  }
+
+  if (!startStr) {
+    const suffixLength = Number(endStr);
+    if (!Number.isInteger(suffixLength) || suffixLength <= 0) {
+      return { kind: "invalid" };
+    }
+
+    return {
+      kind: "partial",
+      start: Math.max(size - suffixLength, 0),
+      end: size - 1,
+    };
+  }
+
+  const start = Number(startStr);
+  if (!Number.isInteger(start) || start < 0 || start >= size) {
+    return { kind: "invalid" };
+  }
+
+  if (!endStr) {
+    return { kind: "partial", start, end: size - 1 };
+  }
+
+  const parsedEnd = Number(endStr);
+  if (!Number.isInteger(parsedEnd) || parsedEnd < start) {
+    return { kind: "invalid" };
+  }
+
+  return {
+    kind: "partial",
+    start,
+    end: Math.min(parsedEnd, size - 1),
+  };
+}
+
+function buildAudioResponse(
+  buffer: ArrayBuffer,
+  contentType: string,
+  cacheControl: string,
+  rangeHeader: string | null,
+): Response {
+  const totalSize = buffer.byteLength;
+  const range = resolveByteRange(rangeHeader, totalSize);
+  const baseHeaders = {
+    "Accept-Ranges": "bytes",
+    "Cache-Control": cacheControl,
+    "Content-Type": contentType,
+  };
+
+  if (range.kind === "invalid") {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        "Content-Length": "0",
+        "Content-Range": `bytes */${totalSize}`,
+      },
+    });
+  }
+
+  if (range.kind === "partial") {
+    const partialBuffer = buffer.slice(range.start, range.end + 1);
+    return new Response(partialBuffer, {
+      status: 206,
+      headers: {
+        ...baseHeaders,
+        "Content-Length": String(partialBuffer.byteLength),
+        "Content-Range": `bytes ${range.start}-${range.end}/${totalSize}`,
+      },
+    });
+  }
+
+  return new Response(buffer, {
+    headers: {
+      ...baseHeaders,
+      "Content-Length": String(totalSize),
+    },
+  });
+}
+
 async function resolveAudioContentType(
   admin: ReturnType<typeof createAdminClient>,
   objectPath: string,
@@ -42,7 +145,7 @@ async function resolveAudioContentType(
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path: segments } = await params;
@@ -81,13 +184,12 @@ export async function GET(
     }
     const contentType = await resolveAudioContentType(admin, objectPath);
     const buffer = await data.arrayBuffer();
-    return new Response(buffer, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": getPublicMediaCacheControl(!!archived),
-        "Content-Length": String(buffer.byteLength),
-      },
-    });
+    return buildAudioResponse(
+      buffer,
+      contentType,
+      getPublicMediaCacheControl(!!archived),
+      request.headers.get("range"),
+    );
   }
 
   // Non-archived daily media: require auth + time gate
@@ -122,11 +224,10 @@ export async function GET(
   // Use mime type from the post query when available, fall back to resolver
   const contentType = post.audio_mime_type || await resolveAudioContentType(admin, objectPath);
   const buffer = await data.arrayBuffer();
-  return new Response(buffer, {
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "private, no-store",
-      "Content-Length": String(buffer.byteLength),
-    },
-  });
+  return buildAudioResponse(
+    buffer,
+    contentType,
+    "private, no-store",
+    request.headers.get("range"),
+  );
 }
