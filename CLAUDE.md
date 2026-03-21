@@ -25,6 +25,13 @@ pnpm tsc --noEmit     # type-check without emitting (safe during dev)
 pnpm typecheck        # full type-check (next typegen + tsc --noEmit)
 ```
 
+Optional local-only launcher (kept ignored, not committed):
+```bash
+./plans/localhost/start.sh    # start localhost with the local helper
+./plans/localhost/restore.sh  # manual restore if the helper was interrupted
+```
+The local helper is intentionally kept outside Git and may temporarily force the shared app window open while it runs.
+
 Deploy:
 ```bash
 vercel --yes && vercel alias <url> socialnetwork-dev.vercel.app  # preview → dev alias
