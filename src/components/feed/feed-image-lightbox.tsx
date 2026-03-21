@@ -17,6 +17,10 @@ import {
   type FeedImageLightboxSafeAreaInsets,
 } from "@/lib/utils/feed-image-lightbox-safe-area";
 import { dismissFeedImageLightbox } from "@/lib/utils/feed-image-lightbox-dismiss";
+import {
+  FEED_IMAGE_LIGHTBOX_ZOOM_VIEWPORT_CONTENT,
+  isFeedImageLightboxPinchZoomActive,
+} from "@/lib/utils/feed-image-lightbox-zoom";
 
 interface FeedImageLightboxProps {
   src: string;
@@ -38,6 +42,8 @@ export function FeedImageLightbox({
   unoptimized,
 }: FeedImageLightboxProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const viewportMetaRef = useRef<HTMLMetaElement | null>(null);
+  const viewportMetaContentRef = useRef<string | null>(null);
   const safeAreaInsetsReaderRef = useRef<ReturnType<
     typeof createFeedImageLightboxSafeAreaInsetsReader
   > | null>(null);
@@ -217,6 +223,9 @@ export function FeedImageLightbox({
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    viewportMetaRef.current = document.querySelector('meta[name="viewport"]');
+    viewportMetaContentRef.current = viewportMetaRef.current?.getAttribute("content") ?? null;
+    viewportMetaRef.current?.setAttribute("content", FEED_IMAGE_LIGHTBOX_ZOOM_VIEWPORT_CONTENT);
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -229,6 +238,13 @@ export function FeedImageLightbox({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
+      if (viewportMetaRef.current) {
+        if (viewportMetaContentRef.current) {
+          viewportMetaRef.current.setAttribute("content", viewportMetaContentRef.current);
+        } else {
+          viewportMetaRef.current.removeAttribute("content");
+        }
+      }
     };
   }, [closeLightbox, isOpen]);
 
@@ -236,6 +252,10 @@ export function FeedImageLightbox({
     if (!isOpen) return;
 
     function handleResize() {
+      if (isFeedImageLightboxPinchZoomActive(window.visualViewport?.scale)) {
+        return;
+      }
+
       safeAreaInsetsReaderRef.current?.invalidate();
       const measuredRects = measureRects();
       if (!measuredRects) return;
