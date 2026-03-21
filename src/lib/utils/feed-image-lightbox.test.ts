@@ -11,21 +11,17 @@ describe("getFeedImageLightboxPresentation", () => {
   it("uses a visible blurred veil and full-size image state when open", () => {
     expect(getFeedImageLightboxPresentation(true)).toEqual({
       overlayClassName: expect.stringContaining("opacity-100"),
-      contentClassName: expect.stringContaining("scale-100"),
     });
 
     expect(getFeedImageLightboxPresentation(true).overlayClassName).toContain("backdrop-blur-sm");
-    expect(getFeedImageLightboxPresentation(true).contentClassName).toContain("translate-y-0");
   });
 
   it("uses a transparent veil and slightly shrunken image state when closed", () => {
     expect(getFeedImageLightboxPresentation(false)).toEqual({
       overlayClassName: expect.stringContaining("opacity-0"),
-      contentClassName: expect.stringContaining("scale-95"),
     });
 
     expect(getFeedImageLightboxPresentation(false).overlayClassName).toContain("backdrop-blur-none");
-    expect(getFeedImageLightboxPresentation(false).contentClassName).toContain("translate-y-3");
   });
 });
 

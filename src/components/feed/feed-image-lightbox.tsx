@@ -12,6 +12,10 @@ import {
   getFeedImageLightboxTargetRect,
   getFeedImageLightboxViewportRect,
 } from "@/lib/utils/feed-image-lightbox";
+import {
+  createFeedImageLightboxSafeAreaInsetsReader,
+  type FeedImageLightboxSafeAreaInsets,
+} from "@/lib/utils/feed-image-lightbox-safe-area";
 import { dismissFeedImageLightbox } from "@/lib/utils/feed-image-lightbox-dismiss";
 
 interface FeedImageLightboxProps {
@@ -34,6 +38,9 @@ export function FeedImageLightbox({
   unoptimized,
 }: FeedImageLightboxProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const safeAreaInsetsReaderRef = useRef<ReturnType<
+    typeof createFeedImageLightboxSafeAreaInsetsReader
+  > | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [originRect, setOriginRect] = useState<FeedImageLightboxRect | null>(null);
@@ -87,7 +94,7 @@ export function FeedImageLightbox({
     });
   }, []);
 
-  const measureSafeAreaInsets = useCallback(() => {
+  const readSafeAreaInsetsFromDom = useCallback((): FeedImageLightboxSafeAreaInsets => {
     if (typeof document === "undefined") {
       return {
         top: 0,
@@ -122,11 +129,21 @@ export function FeedImageLightbox({
     return insets;
   }, []);
 
+  const getSafeAreaInsets = useCallback(() => {
+    if (!safeAreaInsetsReaderRef.current) {
+      safeAreaInsetsReaderRef.current = createFeedImageLightboxSafeAreaInsetsReader(
+        readSafeAreaInsetsFromDom
+      );
+    }
+
+    return safeAreaInsetsReaderRef.current.read();
+  }, [readSafeAreaInsetsFromDom]);
+
   const measureRects = useCallback(() => {
     if (typeof window === "undefined" || !buttonRef.current) return null;
 
     const viewportRect = getViewportRect();
-    const safeAreaInsets = measureSafeAreaInsets();
+    const safeAreaInsets = getSafeAreaInsets();
     const rect = buttonRef.current.getBoundingClientRect();
     const measuredOrigin = {
       top: rect.top + viewportRect.top,
@@ -153,7 +170,7 @@ export function FeedImageLightbox({
       origin: measuredOrigin,
       target: measuredTarget,
     };
-  }, [getOverlayPadding, getViewportRect, measureSafeAreaInsets]);
+  }, [getOverlayPadding, getSafeAreaInsets, getViewportRect]);
 
   const closeLightbox = useCallback(() => {
     clearPendingFrame();
@@ -174,11 +191,11 @@ export function FeedImageLightbox({
       return;
     }
 
-    const measuredRects = measureRects();
-    if (!measuredRects) return;
-
     clearPendingFrame();
     clearPendingClose();
+    safeAreaInsetsReaderRef.current?.invalidate();
+    const measuredRects = measureRects();
+    if (!measuredRects) return;
     setOriginRect(measuredRects.origin);
     setTargetRect(measuredRects.target);
     setIsOpen(true);
@@ -219,6 +236,7 @@ export function FeedImageLightbox({
     if (!isOpen) return;
 
     function handleResize() {
+      safeAreaInsetsReaderRef.current?.invalidate();
       const measuredRects = measureRects();
       if (!measuredRects) return;
       setTargetRect(measuredRects.target);

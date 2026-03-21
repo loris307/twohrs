@@ -49,12 +49,6 @@ export function getFeedImageLightboxPresentation(isVisible: boolean) {
         ? "bg-background/55 opacity-100 backdrop-blur-sm"
         : "bg-background/0 opacity-0 backdrop-blur-none"
     ),
-    contentClassName: cn(
-      "transition-all duration-200 ease-out",
-      isVisible
-        ? "translate-y-0 scale-100 opacity-100"
-        : "translate-y-3 scale-95 opacity-0"
-    ),
   };
 }
 
