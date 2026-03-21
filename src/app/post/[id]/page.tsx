@@ -11,6 +11,7 @@ import { PostComments } from "./post-comments";
 import { AppShell } from "@/app/(app)/app-shell";
 import { isAppOpen } from "@/lib/utils/time";
 import { OPEN_HOUR, CLOSE_HOUR } from "@/lib/constants";
+import { getPostDetailContentClassName } from "@/lib/utils/post-detail-layout";
 import type { Metadata } from "next";
 
 interface PostPageProps {
@@ -178,7 +179,7 @@ export default async function PostPage({ params }: PostPageProps) {
       unreadMentionCount={unreadMentionCount}
       moderationStrikes={profile?.moderation_strikes ?? 0}
     >
-      <div className="mx-auto max-w-lg px-4 py-4">
+      <div className={getPostDetailContentClassName()}>
         <Link
           href="/feed"
           className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
