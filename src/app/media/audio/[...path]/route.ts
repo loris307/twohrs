@@ -17,31 +17,56 @@ const AUDIO_CONTENT_TYPE_MAP: Record<string, string> = {
 type ByteRangeResolution =
   | { kind: "full" }
   | { kind: "partial"; start: number; end: number }
-  | { kind: "invalid" };
+  | { kind: "unsatisfiable" };
+
+function parseDecimalInteger(value: string): number | null {
+  if (!/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
 
 function resolveByteRange(rangeHeader: string | null, size: number): ByteRangeResolution {
   if (!rangeHeader) {
     return { kind: "full" };
   }
 
-  if (size <= 0 || !rangeHeader.startsWith("bytes=")) {
-    return { kind: "invalid" };
+  const headerValue = rangeHeader.trim();
+  const separatorIndex = headerValue.indexOf("=");
+  if (separatorIndex <= 0) {
+    return { kind: "full" };
   }
 
-  const rangeSpec = rangeHeader.slice("bytes=".length).trim();
-  if (!rangeSpec || rangeSpec.includes(",")) {
-    return { kind: "invalid" };
+  const rangeUnit = headerValue.slice(0, separatorIndex).trim().toLowerCase();
+  const rangeSpec = headerValue.slice(separatorIndex + 1).trim();
+
+  if (rangeUnit !== "bytes") {
+    return { kind: "full" };
+  }
+
+  if (
+    !rangeSpec ||
+    !rangeSpec.includes("-") ||
+    rangeSpec.includes(",") ||
+    rangeSpec.indexOf("-") !== rangeSpec.lastIndexOf("-")
+  ) {
+    return { kind: "full" };
   }
 
   const [startStr, endStr] = rangeSpec.split("-", 2);
   if (!startStr && !endStr) {
-    return { kind: "invalid" };
+    return { kind: "full" };
   }
 
   if (!startStr) {
-    const suffixLength = Number(endStr);
-    if (!Number.isInteger(suffixLength) || suffixLength <= 0) {
-      return { kind: "invalid" };
+    const suffixLength = parseDecimalInteger(endStr);
+    if (suffixLength == null) {
+      return { kind: "full" };
+    }
+    if (suffixLength === 0 || size === 0) {
+      return { kind: "unsatisfiable" };
     }
 
     return {
@@ -51,18 +76,21 @@ function resolveByteRange(rangeHeader: string | null, size: number): ByteRangeRe
     };
   }
 
-  const start = Number(startStr);
-  if (!Number.isInteger(start) || start < 0 || start >= size) {
-    return { kind: "invalid" };
+  const start = parseDecimalInteger(startStr);
+  if (start == null) {
+    return { kind: "full" };
+  }
+  if (start >= size) {
+    return { kind: "unsatisfiable" };
   }
 
-  if (!endStr) {
+  if (endStr === "") {
     return { kind: "partial", start, end: size - 1 };
   }
 
-  const parsedEnd = Number(endStr);
-  if (!Number.isInteger(parsedEnd) || parsedEnd < start) {
-    return { kind: "invalid" };
+  const parsedEnd = parseDecimalInteger(endStr);
+  if (parsedEnd == null || parsedEnd < start) {
+    return { kind: "full" };
   }
 
   return {
@@ -86,7 +114,7 @@ function buildAudioResponse(
     "Content-Type": contentType,
   };
 
-  if (range.kind === "invalid") {
+  if (range.kind === "unsatisfiable") {
     return new Response(null, {
       status: 416,
       headers: {
