@@ -40,13 +40,22 @@ function blockedOauthRedirect(
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const tokenType = searchParams.get("type");
   const mode = searchParams.get("mode") === "signup" ? "signup" : "signin";
   const rawNext = searchParams.get("next") ?? "/feed";
   const next = isSafeRedirect(rawNext) ? rawNext : "/feed";
 
-  if (code) {
+  if (code || (tokenHash && tokenType)) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+    const { error } = code
+      ? await supabase.auth.exchangeCodeForSession(code)
+      : await supabase.auth.verifyOtp({
+          token_hash: tokenHash!,
+          type: tokenType as "magiclink" | "email" | "recovery" | "invite" | "email_change",
+        });
+
     if (!error) {
       const adminClient = createAdminClient();
       const {

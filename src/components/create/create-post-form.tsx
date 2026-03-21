@@ -11,6 +11,11 @@ import { MentionAutocomplete } from "@/components/shared/mention-autocomplete";
 import { createPostRecord, createAudioPostRecord } from "@/lib/actions/posts";
 import { uploadImageWithProgress } from "@/lib/utils/upload";
 import { uploadAudioWithProgress } from "@/lib/utils/upload-audio";
+import {
+  advanceVisualUploadProgress,
+  getVisualUploadWord,
+  mapActualUploadProgressToDisplay,
+} from "@/lib/utils/create-post-progress";
 import { MAX_CAPTION_LENGTH } from "@/lib/constants";
 
 type OgData = {
@@ -30,6 +35,9 @@ export function CreatePostForm() {
   const [caption, setCaption] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [displayUploadProgress, setDisplayUploadProgress] = useState(0);
+  const [isVisualUploadProcessing, setIsVisualUploadProcessing] = useState(false);
+  const [isVisualUploadCompleting, setIsVisualUploadCompleting] = useState(false);
   const [ogData, setOgData] = useState<OgData | null>(null);
   const [ogLoading, setOgLoading] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -40,6 +48,29 @@ export function CreatePostForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
+  const showVisualUploadProgress = mode === "visual" && !!image;
+  const visibleUploadProgress = showVisualUploadProgress
+    ? displayUploadProgress
+    : uploadProgress;
+  const uploadStatusText = showVisualUploadProgress
+    ? getVisualUploadWord(
+        displayUploadProgress,
+        isVisualUploadProcessing,
+        isVisualUploadCompleting
+      )
+    : uploadProgress < 100
+      ? "Wird hochgeladen..."
+      : "Wird gespeichert...";
+
+  useEffect(() => {
+    if (!isSubmitting || !isVisualUploadProcessing || isVisualUploadCompleting) return;
+
+    const intervalId = window.setInterval(() => {
+      setDisplayUploadProgress((current) => advanceVisualUploadProgress(current));
+    }, 220);
+
+    return () => window.clearInterval(intervalId);
+  }, [isSubmitting, isVisualUploadCompleting, isVisualUploadProcessing]);
 
   function handleMentionSelect(username: string, startIndex: number, endIndex: number) {
     const newCaption = caption.slice(0, startIndex) + `@${username} ` + caption.slice(endIndex);
@@ -146,6 +177,9 @@ export function CreatePostForm() {
 
     setIsSubmitting(true);
     setUploadProgress(0);
+    setDisplayUploadProgress(0);
+    setIsVisualUploadProcessing(false);
+    setIsVisualUploadCompleting(false);
 
     try {
       if (mode === "audio" && recordedBlob && recordedDurationMs && recordedMimeType) {
@@ -153,7 +187,10 @@ export function CreatePostForm() {
         const uploaded = await uploadAudioWithProgress(
           recordedBlob,
           recordedMimeType,
-          setUploadProgress
+          (percent) => {
+            setUploadProgress(percent);
+            setDisplayUploadProgress(percent);
+          }
         );
 
         const result = await createAudioPostRecord(
@@ -164,6 +201,8 @@ export function CreatePostForm() {
         );
 
         if (result.success) {
+          setUploadProgress(100);
+          setDisplayUploadProgress(100);
           document.dispatchEvent(new Event("navigation-start"));
           router.push("/feed");
           return;
@@ -176,9 +215,15 @@ export function CreatePostForm() {
         if (image) {
           const uploaded = await uploadImageWithProgress(
             image,
-            setUploadProgress
+            (percent) => {
+              setUploadProgress(percent);
+              setDisplayUploadProgress(mapActualUploadProgressToDisplay(percent));
+            }
           );
           imagePath = uploaded.imagePath;
+          setUploadProgress(100);
+          setDisplayUploadProgress(mapActualUploadProgressToDisplay(100));
+          setIsVisualUploadProcessing(true);
         }
 
         const result = await createPostRecord(
@@ -195,6 +240,13 @@ export function CreatePostForm() {
         );
 
         if (result.success) {
+          if (imagePath) {
+            setIsVisualUploadCompleting(true);
+            setDisplayUploadProgress(99);
+            await new Promise((resolve) => window.setTimeout(resolve, 150));
+          }
+          setUploadProgress(100);
+          setDisplayUploadProgress(100);
           document.dispatchEvent(new Event("navigation-start"));
           router.push("/feed");
           return;
@@ -208,6 +260,9 @@ export function CreatePostForm() {
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
+      setDisplayUploadProgress(0);
+      setIsVisualUploadProcessing(false);
+      setIsVisualUploadCompleting(false);
     }
   }
 
@@ -326,15 +381,13 @@ export function CreatePostForm() {
       {isSubmitting && (mode === "visual" ? image : recordedBlob) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              {uploadProgress < 100 ? "Wird hochgeladen..." : "Wird gespeichert..."}
-            </span>
-            <span className="tabular-nums font-medium">{uploadProgress}%</span>
+            <span className="text-muted-foreground">{uploadStatusText}</span>
+            <span className="tabular-nums font-medium">{visibleUploadProgress}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
-              style={{ width: `${uploadProgress}%` }}
+              style={{ width: `${visibleUploadProgress}%` }}
             />
           </div>
         </div>
