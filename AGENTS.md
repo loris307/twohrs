@@ -108,12 +108,14 @@ src/
 │   ├── (auth)/            # Auth pages (login, signup, callback)
 │   ├── (app)/             # Authenticated + time-gated (feed, create, leaderboard, profile, settings, search)
 │   ├── post/[id]/         # Post detail page (outside route groups for OG metadata)
-│   └── api/               # feed, og, comments, search, mentions, export, cron
+│   ├── media/             # Authenticated proxy routes for private storage (audio)
+│   └── api/               # feed, og, comments, search, mentions, export, cron, uploads
 ├── components/
 │   ├── auth/              # Google OAuth button, username setup form
-│   ├── layout/            # Navbar, bottom-nav, time-banner, navigation-progress, active-users-count
+│   ├── layout/            # Navbar, bottom-nav, time-banner, navigation-progress, active-users-count, recovery-email-banner, service-worker-register
 │   ├── feed/              # Post card, post grid, upvote button, comment-thread, link preview
-│   ├── create/            # Image upload, create post form, OG preview
+│   ├── create/            # Image upload, audio recorder, create post form, OG preview
+│   ├── settings/          # Recovery email section
 │   ├── leaderboard/       # Podium, entry row, table, top post card, archive-tabs
 │   ├── profile/           # Profile header, stats, follow button, profile-tabs, mentions-list
 │   ├── shared/            # Reusable components (mention-autocomplete, audio-player)
@@ -124,7 +126,7 @@ src/
 │   ├── queries/           # Data fetching (posts, comments, leaderboard, profile, private-profile, mentions)
 │   ├── hooks/             # Client hooks (useCountdown, useTimeGate, useInfiniteFeed, useNewPosts, useOnlineUsers, useUnreadMentions)
 │   ├── comments/          # Threading utilities (sort, merge, visual depth) + tests
-│   ├── utils/             # Pure utilities (cn, time, image, format, upload, magic-bytes, mentions, rate-limit, strip-exif, disposable-email, signup-guards, username, hashtags, etc.)
+│   ├── utils/             # Pure utilities (cn, time, image, format, upload, upload-audio, magic-bytes, audio-magic-bytes, audio-recording, mentions, rate-limit, strip-exif, disposable-email, signup-guards, username, hashtags, private-media, create-post-progress, normalize-text, auth-email, profile-path, route-segment)
 │   ├── data/              # Static data (blocked-domains.json)
 │   ├── moderation/        # Content moderation (blocked-domains, check-content, nsfw, strikes)
 │   ├── constants.ts       # All magic numbers and config
@@ -213,6 +215,7 @@ Time window configured via env vars → `constants.ts` fallbacks → `app_config
 | `daily_leaderboard` | Yes | Historical archive, grows daily |
 | `top_posts_all_time` | Yes | Hall of Fame — best post per day with top comments |
 | `banned_email_hashes` | Yes | SHA-256 of banned emails (strike 3 → account deletion) |
+| `rate_limit_windows` | Yes | DB-backed rate limiting (atomic UPSERT, 7-day TTL cleanup) |
 | `app_config` | Yes | Server-side config (time window, limits) |
 
 ### Key Columns
@@ -236,10 +239,11 @@ Time window configured via env vars → `constants.ts` fallbacks → `app_config
 - `profiles.total_upvotes_received` — maintained by `handle_vote_change()` trigger
 - `profiles` protected columns (`is_admin`, `moderation_strikes`, `nsfw_strikes`, `days_won`, `total_upvotes_received`, `total_posts_created`) — `protect_profile_columns` trigger (SECURITY INVOKER) prevents client-side modification
 - `toggle_vote()` — SECURITY DEFINER function for atomic vote toggle + self-vote prevention
+- `check_rate_limit(scope_key, limit, window_ms)` — SECURITY DEFINER RPC for DB-backed rate limiting (replaces in-memory). Only callable by service_role. Fail-open on timeout.
 
 ### Migrations
 
-Numbered sequentially in `supabase/migrations/` (001-044, next: 045). Simple numeric scheme, not Supabase timestamps. Push with `supabase db push`.
+Numbered sequentially in `supabase/migrations/` (001-048, next: 049). Simple numeric scheme, not Supabase timestamps. Push with `supabase db push`.
 
 One Edge Function: `supabase/functions/cleanup-storage/` (Deno runtime, excluded from tsconfig).
 
@@ -317,7 +321,7 @@ vercel alias <new-preview-url> socialnetwork-dev.vercel.app
 ### Supabase
 
 - **Redirect URLs:** Both `twohrs.com/**` and `socialnetwork-dev.vercel.app/**` in Supabase Auth config
-- **Storage buckets:** `memes` (public, 5MB), `avatars` (public, 2MB), and `audio-posts` (public, 2MB, allowed: webm/ogg/mp4)
+- **Storage buckets:** `memes` (public, 5MB), `avatars` (public, 2MB), and `audio-posts` (private, 2MB, allowed: webm/ogg/mp4 — served via `/media/audio/` proxy with auth + time-gate)
 
 ### Production Checklist
 
@@ -347,3 +351,6 @@ vercel alias <new-preview-url> socialnetwork-dev.vercel.app
 - **API route auth:** All `/api/*` routes require auth (401 if not logged in). Exception: `/api/cron/*` uses Bearer token.
 - **Profile data exposure:** Public queries use explicit column lists + `PublicProfile` type to avoid leaking admin/strike fields.
 - **Navigation progress bar:** Auto-detects `<a>` clicks. For `router.push()`, dispatch `new Event("navigation-start")` first.
+- **Upload routes:** `/api/uploads/image` and `/api/uploads/audio` — token-based upload authentication, validates and stores files server-side.
+- **Audio media proxy:** `/media/audio/[...path]` — authenticated proxy for private `audio-posts` bucket with HTTP byte-range support (206 Partial Content).
+- **DB rate limiting:** `check_rate_limit()` RPC replaces process-local rate limiting. Shared across all Vercel instances. Nightly cleanup removes stale entries (7-day TTL).
