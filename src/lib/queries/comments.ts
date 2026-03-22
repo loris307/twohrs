@@ -86,6 +86,59 @@ export async function getTopLevelCommentsPage(
   };
 }
 
+/**
+ * Batch-fetch top-level comments for multiple posts in minimal DB round-trips.
+ * Returns a Map from post_id → CommentListItem[].
+ */
+export async function getTopCommentsForPosts(
+  postIds: string[],
+  userId: string | undefined,
+  limit: number = 3
+): Promise<Map<string, CommentListItem[]>> {
+  if (postIds.length === 0) return new Map();
+
+  const supabase = await createClient();
+
+  const { data: allComments } = await supabase
+    .from("comments")
+    .select(COMMENT_SELECT)
+    .in("post_id", postIds)
+    .is("parent_comment_id", null)
+    .is("deleted_at", null)
+    .order("post_id")
+    .order("upvote_count", { ascending: false })
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(postIds.length * limit * 3);
+
+  if (!allComments || allComments.length === 0) return new Map();
+
+  // Per-Post auf `limit` begrenzen (Supabase hat kein PARTITION BY LIMIT)
+  const grouped = new Map<string, Record<string, unknown>[]>();
+  for (const comment of allComments) {
+    const pid = comment.post_id as string;
+    const existing = grouped.get(pid) || [];
+    if (existing.length < limit) {
+      existing.push(comment as unknown as Record<string, unknown>);
+      grouped.set(pid, existing);
+    }
+  }
+
+  // Vote-Enrichment — ein einziger Batch-Query für ALLE Kommentare
+  const allFlat = [...grouped.values()].flat();
+  const enriched = await enrichCommentsWithVotes(allFlat, userId);
+
+  // Zurück in Map gruppieren
+  const result = new Map<string, CommentListItem[]>();
+  for (const comment of enriched) {
+    const existing = result.get(comment.post_id) || [];
+    existing.push(comment);
+    result.set(comment.post_id, existing);
+  }
+
+  return result;
+}
+
 export async function getCommentRepliesPage(
   parentCommentId: string,
   offset: number,

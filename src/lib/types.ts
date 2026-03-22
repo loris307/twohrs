@@ -39,6 +39,7 @@ export type PostWithAuthor = Post & {
   profiles: Pick<Profile, "username" | "display_name" | "avatar_url">;
   has_voted: boolean;
   is_followed: boolean;
+  top_comments?: CommentListItem[];
 };
 
 export type Vote = {

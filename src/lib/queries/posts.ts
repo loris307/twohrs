@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { FEED_PAGE_SIZE, HOT_MIN_UPVOTES } from "@/lib/constants";
 import type { FeedTab } from "@/lib/constants";
-import type { PostWithAuthor, FeedPage } from "@/lib/types";
+import type { PostWithAuthor, FeedPage, CommentListItem } from "@/lib/types";
+import { getTopCommentsForPosts } from "@/lib/queries/comments";
 
 export const POST_WITH_AUTHOR_SELECT = `
   id,
@@ -49,28 +50,37 @@ export async function getFeed(cursor?: string): Promise<FeedPage> {
   // Check which posts the current user has voted on + who they follow
   let votedPostIds: Set<string> = new Set();
   let followedUserIds: Set<string> = new Set();
-  if (user && posts.length > 0) {
+  let topCommentsMap = new Map<string, CommentListItem[]>();
+
+  if (posts.length > 0) {
     const postIds = posts.map((p) => p.id);
-    const authorIds = [...new Set(posts.map((p) => p.user_id))];
 
-    const [{ data: votes }, { data: follows }] = await Promise.all([
-      supabase
-        .from("votes")
-        .select("post_id")
-        .eq("user_id", user.id)
-        .in("post_id", postIds),
-      supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id)
-        .in("following_id", authorIds),
-    ]);
+    if (user) {
+      const authorIds = [...new Set(posts.map((p) => p.user_id))];
 
-    if (votes) {
-      votedPostIds = new Set(votes.map((v) => v.post_id));
-    }
-    if (follows) {
-      followedUserIds = new Set(follows.map((f) => f.following_id));
+      const [{ data: votes }, { data: follows }, commentsMap] = await Promise.all([
+        supabase
+          .from("votes")
+          .select("post_id")
+          .eq("user_id", user.id)
+          .in("post_id", postIds),
+        supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
+          .in("following_id", authorIds),
+        getTopCommentsForPosts(postIds, user.id),
+      ]);
+
+      if (votes) {
+        votedPostIds = new Set(votes.map((v) => v.post_id));
+      }
+      if (follows) {
+        followedUserIds = new Set(follows.map((f) => f.following_id));
+      }
+      topCommentsMap = commentsMap;
+    } else {
+      topCommentsMap = await getTopCommentsForPosts(postIds, undefined);
     }
   }
 
@@ -82,6 +92,7 @@ export async function getFeed(cursor?: string): Promise<FeedPage> {
     profiles: post.profiles as unknown as PostWithAuthor["profiles"],
     has_voted: votedPostIds.has(post.id),
     is_followed: followedUserIds.has(post.user_id),
+    top_comments: topCommentsMap.get(post.id) || [],
   }));
 
   return {
@@ -213,17 +224,22 @@ export async function getFeedFollowing(cursor?: string): Promise<FeedPage> {
   const followedUserIdSet = new Set(followingIds);
 
   let votedPostIds: Set<string> = new Set();
+  let topCommentsMap = new Map<string, CommentListItem[]>();
   if (posts.length > 0) {
     const postIds = posts.map((p) => p.id);
-    const { data: votes } = await supabase
-      .from("votes")
-      .select("post_id")
-      .eq("user_id", user.id)
-      .in("post_id", postIds);
+    const [{ data: votes }, commentsMap] = await Promise.all([
+      supabase
+        .from("votes")
+        .select("post_id")
+        .eq("user_id", user.id)
+        .in("post_id", postIds),
+      getTopCommentsForPosts(postIds, user.id),
+    ]);
 
     if (votes) {
       votedPostIds = new Set(votes.map((v) => v.post_id));
     }
+    topCommentsMap = commentsMap;
   }
 
   const hasMore = posts.length > FEED_PAGE_SIZE;
@@ -234,6 +250,7 @@ export async function getFeedFollowing(cursor?: string): Promise<FeedPage> {
     profiles: post.profiles as unknown as PostWithAuthor["profiles"],
     has_voted: votedPostIds.has(post.id),
     is_followed: followedUserIdSet.has(post.user_id),
+    top_comments: topCommentsMap.get(post.id) || [],
   }));
 
   return {
@@ -295,28 +312,37 @@ export async function getFeedByHashtag(
 
   let votedPostIds: Set<string> = new Set();
   let followedUserIds: Set<string> = new Set();
-  if (user && posts.length > 0) {
+  let topCommentsMap = new Map<string, CommentListItem[]>();
+
+  if (posts.length > 0) {
     const pIds = posts.map((p) => p.id);
-    const authorIds = [...new Set(posts.map((p) => p.user_id))];
 
-    const [{ data: votes }, { data: follows }] = await Promise.all([
-      supabase
-        .from("votes")
-        .select("post_id")
-        .eq("user_id", user.id)
-        .in("post_id", pIds),
-      supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id)
-        .in("following_id", authorIds),
-    ]);
+    if (user) {
+      const authorIds = [...new Set(posts.map((p) => p.user_id))];
 
-    if (votes) {
-      votedPostIds = new Set(votes.map((v) => v.post_id));
-    }
-    if (follows) {
-      followedUserIds = new Set(follows.map((f) => f.following_id));
+      const [{ data: votes }, { data: follows }, commentsMap] = await Promise.all([
+        supabase
+          .from("votes")
+          .select("post_id")
+          .eq("user_id", user.id)
+          .in("post_id", pIds),
+        supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
+          .in("following_id", authorIds),
+        getTopCommentsForPosts(pIds, user.id),
+      ]);
+
+      if (votes) {
+        votedPostIds = new Set(votes.map((v) => v.post_id));
+      }
+      if (follows) {
+        followedUserIds = new Set(follows.map((f) => f.following_id));
+      }
+      topCommentsMap = commentsMap;
+    } else {
+      topCommentsMap = await getTopCommentsForPosts(pIds, undefined);
     }
   }
 
@@ -328,6 +354,7 @@ export async function getFeedByHashtag(
     profiles: post.profiles as unknown as PostWithAuthor["profiles"],
     has_voted: votedPostIds.has(post.id),
     is_followed: followedUserIds.has(post.user_id),
+    top_comments: topCommentsMap.get(post.id) || [],
   }));
 
   const lastPost = feedPosts[feedPosts.length - 1];
@@ -405,28 +432,37 @@ export async function getFeedHot(cursor?: string): Promise<FeedPage> {
 
   let votedPostIds: Set<string> = new Set();
   let followedUserIds: Set<string> = new Set();
-  if (user && posts.length > 0) {
+  let topCommentsMap = new Map<string, CommentListItem[]>();
+
+  if (posts.length > 0) {
     const postIds = posts.map((p) => p.id);
-    const authorIds = [...new Set(posts.map((p) => p.user_id))];
 
-    const [{ data: votes }, { data: follows }] = await Promise.all([
-      supabase
-        .from("votes")
-        .select("post_id")
-        .eq("user_id", user.id)
-        .in("post_id", postIds),
-      supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id)
-        .in("following_id", authorIds),
-    ]);
+    if (user) {
+      const authorIds = [...new Set(posts.map((p) => p.user_id))];
 
-    if (votes) {
-      votedPostIds = new Set(votes.map((v) => v.post_id));
-    }
-    if (follows) {
-      followedUserIds = new Set(follows.map((f) => f.following_id));
+      const [{ data: votes }, { data: follows }, commentsMap] = await Promise.all([
+        supabase
+          .from("votes")
+          .select("post_id")
+          .eq("user_id", user.id)
+          .in("post_id", postIds),
+        supabase
+          .from("follows")
+          .select("following_id")
+          .eq("follower_id", user.id)
+          .in("following_id", authorIds),
+        getTopCommentsForPosts(postIds, user.id),
+      ]);
+
+      if (votes) {
+        votedPostIds = new Set(votes.map((v) => v.post_id));
+      }
+      if (follows) {
+        followedUserIds = new Set(follows.map((f) => f.following_id));
+      }
+      topCommentsMap = commentsMap;
+    } else {
+      topCommentsMap = await getTopCommentsForPosts(postIds, undefined);
     }
   }
 
@@ -438,6 +474,7 @@ export async function getFeedHot(cursor?: string): Promise<FeedPage> {
     profiles: post.profiles as unknown as PostWithAuthor["profiles"],
     has_voted: votedPostIds.has(post.id),
     is_followed: followedUserIds.has(post.user_id),
+    top_comments: topCommentsMap.get(post.id) || [],
   }));
 
   const lastPost = feedPosts[feedPosts.length - 1];
