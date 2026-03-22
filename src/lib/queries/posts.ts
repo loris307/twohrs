@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { FEED_PAGE_SIZE, HOT_MIN_UPVOTES } from "@/lib/constants";
 import type { FeedTab } from "@/lib/constants";
-import type { PostWithAuthor, FeedPage } from "@/lib/types";
+import type { PostWithAuthor, FeedPage, CommentListItem } from "@/lib/types";
 import { getTopCommentsForPosts } from "@/lib/queries/comments";
 
 export const POST_WITH_AUTHOR_SELECT = `
@@ -50,7 +50,7 @@ export async function getFeed(cursor?: string): Promise<FeedPage> {
   // Check which posts the current user has voted on + who they follow
   let votedPostIds: Set<string> = new Set();
   let followedUserIds: Set<string> = new Set();
-  let topCommentsMap = new Map<string, import("@/lib/types").CommentListItem[]>();
+  let topCommentsMap = new Map<string, CommentListItem[]>();
 
   if (posts.length > 0) {
     const postIds = posts.map((p) => p.id);
@@ -224,7 +224,7 @@ export async function getFeedFollowing(cursor?: string): Promise<FeedPage> {
   const followedUserIdSet = new Set(followingIds);
 
   let votedPostIds: Set<string> = new Set();
-  let topCommentsMap = new Map<string, import("@/lib/types").CommentListItem[]>();
+  let topCommentsMap = new Map<string, CommentListItem[]>();
   if (posts.length > 0) {
     const postIds = posts.map((p) => p.id);
     const [{ data: votes }, commentsMap] = await Promise.all([
@@ -312,7 +312,7 @@ export async function getFeedByHashtag(
 
   let votedPostIds: Set<string> = new Set();
   let followedUserIds: Set<string> = new Set();
-  let topCommentsMap = new Map<string, import("@/lib/types").CommentListItem[]>();
+  let topCommentsMap = new Map<string, CommentListItem[]>();
 
   if (posts.length > 0) {
     const pIds = posts.map((p) => p.id);
@@ -432,7 +432,7 @@ export async function getFeedHot(cursor?: string): Promise<FeedPage> {
 
   let votedPostIds: Set<string> = new Set();
   let followedUserIds: Set<string> = new Set();
-  let topCommentsMap = new Map<string, import("@/lib/types").CommentListItem[]>();
+  let topCommentsMap = new Map<string, CommentListItem[]>();
 
   if (posts.length > 0) {
     const postIds = posts.map((p) => p.id);

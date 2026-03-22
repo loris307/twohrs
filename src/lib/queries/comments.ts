@@ -88,7 +88,7 @@ export async function getTopLevelCommentsPage(
 
 /**
  * Batch-fetch top-level comments for multiple posts in minimal DB round-trips.
- * Returns a Map von post_id → CommentListItem[].
+ * Returns a Map from post_id → CommentListItem[].
  */
 export async function getTopCommentsForPosts(
   postIds: string[],
@@ -109,7 +109,7 @@ export async function getTopCommentsForPosts(
     .order("upvote_count", { ascending: false })
     .order("created_at", { ascending: true })
     .order("id", { ascending: true })
-    .limit(postIds.length * limit);
+    .limit(postIds.length * limit * 3);
 
   if (!allComments || allComments.length === 0) return new Map();
 
