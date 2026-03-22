@@ -2,12 +2,13 @@
 
 import { useState, useTransition, useCallback } from "react";
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ArrowBigUp } from "lucide-react";
 import { UpvoteButton } from "./upvote-button";
 import { ShareButton } from "./share-button";
 import { CommentThread } from "./comment-thread";
 import { CommentInput } from "./comment-input";
 import { formatNumber } from "@/lib/utils/format";
+import { renderTextWithMentions } from "@/lib/utils/render-mentions";
 import { cn } from "@/lib/utils/cn";
 import { COMMENT_PREVIEW_TOP_LEVEL_LIMIT, COMMENT_MAX_VISUAL_DEPTH_MOBILE } from "@/lib/constants";
 import type { CommentListItem } from "@/lib/types";
@@ -19,6 +20,8 @@ interface PostActionsProps {
   initialCommentCount: number;
   caption: string | null;
   isAdmin?: boolean;
+  initialComments?: CommentListItem[];
+  currentUserId?: string;
 }
 
 export function PostActions({
@@ -28,13 +31,14 @@ export function PostActions({
   initialCommentCount,
   caption,
   isAdmin,
+  initialComments,
+  currentUserId,
 }: PostActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [comments, setComments] = useState<CommentListItem[]>([]);
+  const [comments, setComments] = useState<CommentListItem[]>(initialComments ?? []);
   const [count, setCount] = useState(initialCommentCount);
-  const [totalCount, setTotalCount] = useState(0);
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const [totalCount, setTotalCount] = useState(initialCommentCount);
+  const [hasLoaded, setHasLoaded] = useState((initialComments ?? []).length > 0 || initialCommentCount === 0);
   const [isPending, startTransition] = useTransition();
   const [replyingTo, setReplyingTo] = useState<{
     commentId: string;
@@ -53,9 +57,6 @@ export function PostActions({
         setComments(data.comments);
         setTotalCount(data.totalCount);
         setCount(data.totalCount);
-        if (data.currentUserId) {
-          setCurrentUserId(data.currentUserId);
-        }
         setHasLoaded(true);
       }
     });
@@ -84,10 +85,12 @@ export function PostActions({
 
   function handleReply(commentId: string, username: string) {
     setReplyingTo({ commentId, username });
+    setIsOpen(true);
   }
 
   function handleCancelReply() {
     setReplyingTo(null);
+    setIsOpen(false);
   }
 
   return (
@@ -108,6 +111,8 @@ export function PostActions({
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
+            aria-label={isOpen ? "Kommentarfeld schließen" : "Kommentieren"}
+            aria-expanded={isOpen}
           >
             <MessageCircle className={cn("h-4 w-4", isOpen && "fill-primary")} />
             {count > 0 && <span className="tabular-nums">{formatNumber(count)}</span>}
@@ -116,7 +121,38 @@ export function PostActions({
         <ShareButton postId={postId} caption={caption} />
       </div>
 
-      {/* Comment panel — below buttons, full width */}
+      {/* Compact comment preview — always visible when comments exist and panel is closed */}
+      {!isOpen && comments.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {comments.map((comment) => (
+            <div key={comment.id} className="flex items-start gap-2 text-sm">
+              <div className="min-w-0 flex-1">
+                <span className="font-medium">@{comment.profiles.username}</span>{" "}
+                <span className="text-muted-foreground whitespace-pre-wrap break-words">
+                  {renderTextWithMentions(comment.text)}
+                </span>
+              </div>
+              {comment.upvote_count > 0 && (
+                <span className="flex shrink-0 items-center gap-0.5 text-xs text-primary">
+                  <ArrowBigUp className="h-3.5 w-3.5 fill-primary" />
+                  {formatNumber(comment.upvote_count)}
+                </span>
+              )}
+            </div>
+          ))}
+
+          {totalCount > comments.length && (
+            <Link
+              href={`/post/${postId}`}
+              className="block text-sm text-muted-foreground hover:text-foreground"
+            >
+              Alle {totalCount} Kommentare ansehen
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Full comment panel — when button is toggled open */}
       {isOpen && (
         <div className="mt-3 border-t border-border pt-3">
           <CommentInput
@@ -154,7 +190,7 @@ export function PostActions({
               />
             ))}
 
-            {(totalCount > comments.length) && (
+            {totalCount > comments.length && (
               <Link
                 href={`/post/${postId}`}
                 className="block py-2 text-center text-sm font-medium text-primary hover:text-primary/80"

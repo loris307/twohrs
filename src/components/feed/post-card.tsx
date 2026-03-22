@@ -119,6 +119,8 @@ export function PostCard({ post, currentUserId, hideCommentSection, isAdmin }: P
           initialCommentCount={post.comment_count}
           caption={post.caption}
           isAdmin={isAdmin}
+          initialComments={post.top_comments}
+          currentUserId={currentUserId}
         />
       )}
     </>
