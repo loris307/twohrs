@@ -63,7 +63,7 @@ export function PostActions({
   }, [postId]);
 
   function handleToggle() {
-    if (!isOpen && !hasLoaded) {
+    if (!isOpen) {
       fetchComments();
     }
     setIsOpen((prev) => !prev);
@@ -90,7 +90,6 @@ export function PostActions({
 
   function handleCancelReply() {
     setReplyingTo(null);
-    setIsOpen(false);
   }
 
   return (

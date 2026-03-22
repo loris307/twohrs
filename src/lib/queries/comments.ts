@@ -108,7 +108,8 @@ export async function getTopCommentsForPosts(
     .order("post_id")
     .order("upvote_count", { ascending: false })
     .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+    .order("id", { ascending: true })
+    .limit(postIds.length * limit);
 
   if (!allComments || allComments.length === 0) return new Map();
 
