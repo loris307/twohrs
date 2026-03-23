@@ -1,13 +1,24 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type SyntheticEvent,
+} from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import {
   FEED_IMAGE_LIGHTBOX_CLOSE_DURATION_MS,
   type FeedImageLightboxRect,
+  getFeedImageLightboxClosedPresentation,
+  getFeedImageLightboxContentDimensions,
   getFeedImageLightboxMotionStyle,
+  getFeedImageLightboxOriginRect,
   getFeedImageLightboxPresentation,
   getFeedImageLightboxTargetRect,
   getFeedImageLightboxViewportRect,
@@ -30,6 +41,7 @@ interface FeedImageLightboxProps {
   className?: string;
   style?: CSSProperties;
   unoptimized?: boolean;
+  fullWidth?: boolean;
 }
 
 export function FeedImageLightbox({
@@ -40,8 +52,10 @@ export function FeedImageLightbox({
   className,
   style,
   unoptimized,
+  fullWidth = true,
 }: FeedImageLightboxProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const viewportMetaRef = useRef<HTMLMetaElement | null>(null);
   const viewportMetaContentRef = useRef<string | null>(null);
   const safeAreaInsetsReaderRef = useRef<ReturnType<
@@ -51,6 +65,7 @@ export function FeedImageLightbox({
   const [isVisible, setIsVisible] = useState(false);
   const [originRect, setOriginRect] = useState<FeedImageLightboxRect | null>(null);
   const [targetRect, setTargetRect] = useState<FeedImageLightboxRect | null>(null);
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -145,26 +160,40 @@ export function FeedImageLightbox({
     return safeAreaInsetsReaderRef.current.read();
   }, [readSafeAreaInsetsFromDom]);
 
+  const contentDimensions = getFeedImageLightboxContentDimensions({
+    fallbackWidth: width,
+    fallbackHeight: height,
+    naturalWidth: naturalSize?.width,
+    naturalHeight: naturalSize?.height,
+  });
+
   const measureRects = useCallback(() => {
     if (typeof window === "undefined" || !buttonRef.current) return null;
 
     const viewportRect = getViewportRect();
     const safeAreaInsets = getSafeAreaInsets();
-    const rect = buttonRef.current.getBoundingClientRect();
-    const measuredOrigin = {
-      top: rect.top + viewportRect.top,
-      left: rect.left + viewportRect.left,
-      width: rect.width,
-      height: rect.height,
-    };
+    const triggerRect = buttonRef.current.getBoundingClientRect();
+    const renderedImageRect = imageRef.current?.getBoundingClientRect();
+    const measuredOrigin = getFeedImageLightboxOriginRect({
+      viewportRect,
+      triggerRect,
+      imageRect: renderedImageRect
+        ? {
+            top: renderedImageRect.top,
+            left: renderedImageRect.left,
+            width: renderedImageRect.width,
+            height: renderedImageRect.height,
+          }
+        : undefined,
+    });
 
     const measuredTarget = getFeedImageLightboxTargetRect({
       viewportLeft: viewportRect.left,
       viewportWidth: viewportRect.width,
       viewportTop: viewportRect.top,
       viewportHeight: viewportRect.height,
-      contentWidth: measuredOrigin.width,
-      contentHeight: measuredOrigin.height,
+      contentWidth: contentDimensions.width,
+      contentHeight: contentDimensions.height,
       insetTop: safeAreaInsets.top,
       insetRight: safeAreaInsets.right,
       insetBottom: safeAreaInsets.bottom,
@@ -176,7 +205,28 @@ export function FeedImageLightbox({
       origin: measuredOrigin,
       target: measuredTarget,
     };
-  }, [getOverlayPadding, getSafeAreaInsets, getViewportRect]);
+  }, [contentDimensions.height, contentDimensions.width, getOverlayPadding, getSafeAreaInsets, getViewportRect]);
+
+  const handleImageLoad = useCallback((event: SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    imageRef.current = img;
+
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setNaturalSize((current) => {
+        if (
+          current?.width === img.naturalWidth &&
+          current?.height === img.naturalHeight
+        ) {
+          return current;
+        }
+
+        return {
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        };
+      });
+    }
+  }, []);
 
   const closeLightbox = useCallback(() => {
     clearPendingFrame();
@@ -273,6 +323,7 @@ export function FeedImageLightbox({
   }, [isOpen, measureRects]);
 
   const presentation = getFeedImageLightboxPresentation(isVisible);
+  const closedPresentation = getFeedImageLightboxClosedPresentation(fullWidth);
   const isExpanded = isOpen && !!originRect && !!targetRect;
   const viewportRect = isExpanded ? getViewportRect() : null;
   const fixedImageStyle = isExpanded && originRect && targetRect
@@ -347,20 +398,21 @@ export function FeedImageLightbox({
           "block overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
           isExpanded
             ? "cursor-default"
-            : "w-full cursor-zoom-in"
+            : closedPresentation.triggerClassName
         )}
         style={fixedImageStyle}
       >
         <Image
           src={src}
           alt={alt}
-          width={width}
-          height={height}
+          width={contentDimensions.width}
+          height={contentDimensions.height}
+          onLoad={handleImageLoad}
           className={cn(
             isExpanded
               ? "h-full w-full rounded-xl border border-border/60 bg-card/20 object-contain shadow-2xl"
-              : "w-full object-contain",
-            className
+              : closedPresentation.imageClassName,
+            !isExpanded && className
           )}
           style={isExpanded ? undefined : style}
           unoptimized={unoptimized}

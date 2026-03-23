@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   FEED_IMAGE_LIGHTBOX_CLOSE_DURATION_MS,
+  getFeedImageLightboxClosedPresentation,
+  getFeedImageLightboxContentDimensions,
   getFeedImageLightboxMotionStyle,
+  getFeedImageLightboxOriginRect,
   getFeedImageLightboxPresentation,
   getFeedImageLightboxTargetRect,
   getFeedImageLightboxViewportRect,
@@ -22,6 +25,22 @@ describe("getFeedImageLightboxPresentation", () => {
     });
 
     expect(getFeedImageLightboxPresentation(false).overlayClassName).toContain("backdrop-blur-none");
+  });
+});
+
+describe("getFeedImageLightboxClosedPresentation", () => {
+  it("uses a full-width trigger for feed post images", () => {
+    expect(getFeedImageLightboxClosedPresentation(true)).toEqual({
+      triggerClassName: "w-full cursor-zoom-in",
+      imageClassName: "w-full object-contain",
+    });
+  });
+
+  it("uses an image-sized trigger for comment images", () => {
+    expect(getFeedImageLightboxClosedPresentation(false)).toEqual({
+      triggerClassName: "inline-block cursor-zoom-in",
+      imageClassName: "h-auto max-w-full object-contain",
+    });
   });
 });
 
@@ -95,6 +114,90 @@ describe("getFeedImageLightboxTargetRect", () => {
     expect(rect.height).toBeCloseTo(223.75, 2);
     expect(rect.left).toBeCloseTo(28, 2);
     expect(rect.top).toBeCloseTo(292.625, 2);
+  });
+});
+
+describe("getFeedImageLightboxContentDimensions", () => {
+  it("prefers loaded natural dimensions over fallback dimensions", () => {
+    expect(
+      getFeedImageLightboxContentDimensions({
+        fallbackWidth: 150,
+        fallbackHeight: 150,
+        naturalWidth: 1200,
+        naturalHeight: 800,
+      })
+    ).toEqual({
+      width: 1200,
+      height: 800,
+    });
+  });
+
+  it("falls back when natural dimensions are not available", () => {
+    expect(
+      getFeedImageLightboxContentDimensions({
+        fallbackWidth: 150,
+        fallbackHeight: 150,
+      })
+    ).toEqual({
+      width: 150,
+      height: 150,
+    });
+  });
+});
+
+describe("getFeedImageLightboxOriginRect", () => {
+  it("measures from the actual image rect when the trigger is wider than the image", () => {
+    expect(
+      getFeedImageLightboxOriginRect({
+        viewportRect: {
+          left: 0,
+          top: 0,
+          width: 390,
+          height: 844,
+        },
+        triggerRect: {
+          left: 16,
+          top: 120,
+          width: 320,
+          height: 160,
+        },
+        imageRect: {
+          left: 16,
+          top: 120,
+          width: 150,
+          height: 90,
+        },
+      })
+    ).toEqual({
+      left: 16,
+      top: 120,
+      width: 150,
+      height: 90,
+    });
+  });
+
+  it("falls back to the trigger rect when no inner image rect is available", () => {
+    expect(
+      getFeedImageLightboxOriginRect({
+        viewportRect: {
+          left: 12,
+          top: 18,
+          width: 390,
+          height: 760,
+        },
+        triggerRect: {
+          left: 16,
+          top: 120,
+          width: 320,
+          height: 160,
+        },
+      })
+    ).toEqual({
+      left: 28,
+      top: 138,
+      width: 320,
+      height: 160,
+    });
   });
 });
 

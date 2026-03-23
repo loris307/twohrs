@@ -48,13 +48,14 @@ export async function POST(request: Request) {
 
   // 4. Read file from FormData
   const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) {
+  const fileEntry = formData.get("file");
+  if (!(fileEntry instanceof File) || fileEntry.size === 0) {
     return NextResponse.json(
       { error: "Keine Datei hochgeladen" },
       { status: 400 },
     );
   }
+  const file = fileEntry;
 
   // 5. Size check
   if (file.size > MAX_IMAGE_SIZE_BYTES) {

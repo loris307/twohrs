@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
-import { isOwnedCommentImagePath } from "@/lib/utils/private-media";
+import {
+  isOwnedCommentImagePath,
+  storageListHasExactName,
+} from "@/lib/utils/private-media";
 import { MAX_COMMENTS_PER_SESSION, MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
 import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
@@ -75,10 +78,10 @@ export async function createComment(
     const admin = createAdminClient();
     const folder = normalizedImagePath.split("/").slice(0, -1).join("/");
     const filename = normalizedImagePath.split("/").pop()!;
-    const { data: files } = await admin.storage
+    const { data: files, error: listError } = await admin.storage
       .from("memes")
-      .list(folder, { search: filename, limit: 1 });
-    if (!files || files.length === 0) {
+      .list(folder, { search: filename, limit: 100 });
+    if (listError || !storageListHasExactName(files, filename)) {
       return { success: false, error: "Bild nicht gefunden" };
     }
   }

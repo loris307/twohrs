@@ -215,9 +215,13 @@ export function LandingContent({ isLoggedIn, isAdminOnly, yesterdayTopPost, user
                       <div key={i} className="flex items-start gap-2 text-sm">
                         <div className="min-w-0 flex-1">
                           <span className="font-medium">@{comment.username}</span>{" "}
-                          {comment.text && (
+                          {comment.text ? (
                             <span className="text-muted-foreground whitespace-pre-wrap break-words">
                               {renderTextWithMentions(comment.text)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground italic">
+                              [bild-kommentar]
                             </span>
                           )}
                         </div>

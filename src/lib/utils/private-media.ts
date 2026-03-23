@@ -63,6 +63,18 @@ export function getOwnedMemesFolderPrefixes(userId: string): string[] {
 }
 
 /**
+ * Check whether a storage listing contains an exact object-name match.
+ * Supabase `search` can return substring matches, so callers still need this
+ * final equality check before trusting the result.
+ */
+export function storageListHasExactName(
+  files: Array<{ name: string }> | null | undefined,
+  fileName: string,
+): boolean {
+  return Array.isArray(files) && files.some((file) => file.name === fileName);
+}
+
+/**
  * Return the same-origin route prefix for a given storage bucket.
  */
 export function getMediaRoutePrefix(

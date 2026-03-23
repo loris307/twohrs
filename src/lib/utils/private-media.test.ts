@@ -113,6 +113,46 @@ describe("comment image ownership helpers", () => {
   });
 });
 
+describe("storageListHasExactName", () => {
+  it("returns true when one entry matches the exact object name", async () => {
+    const privateMedia = await import("./private-media");
+    const storageListHasExactName = privateMedia.storageListHasExactName as
+      | ((files: Array<{ name: string }> | null | undefined, fileName: string) => boolean)
+      | undefined;
+
+    expect(
+      storageListHasExactName?.(
+        [{ name: "abc.png" }, { name: "def.png" }],
+        "abc.png",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false when only substring matches exist", async () => {
+    const privateMedia = await import("./private-media");
+    const storageListHasExactName = privateMedia.storageListHasExactName as
+      | ((files: Array<{ name: string }> | null | undefined, fileName: string) => boolean)
+      | undefined;
+
+    expect(
+      storageListHasExactName?.(
+        [{ name: "prefix-abc.png" }, { name: "abc.png.extra" }],
+        "abc.png",
+      ),
+    ).toBe(false);
+  });
+
+  it("returns false for missing or empty results", async () => {
+    const privateMedia = await import("./private-media");
+    const storageListHasExactName = privateMedia.storageListHasExactName as
+      | ((files: Array<{ name: string }> | null | undefined, fileName: string) => boolean)
+      | undefined;
+
+    expect(storageListHasExactName?.(undefined, "abc.png")).toBe(false);
+    expect(storageListHasExactName?.([], "abc.png")).toBe(false);
+  });
+});
+
 describe("getMediaRoutePrefix", () => {
   it("maps 'memes' to /media/memes", () => {
     expect(getMediaRoutePrefix("memes")).toBe("/media/memes");

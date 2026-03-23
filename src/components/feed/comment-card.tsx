@@ -158,9 +158,10 @@ export function CommentCard({
                 alt="Kommentar-Bild"
                 width={thumbSize}
                 height={thumbSize}
-                className="rounded-lg object-cover"
+                className="rounded-lg"
                 style={{ maxWidth: thumbSize, maxHeight: thumbSize }}
                 unoptimized
+                fullWidth={false}
               />
             </div>
           )}

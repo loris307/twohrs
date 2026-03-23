@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useTransition, useEffect, useRef, useCallback } from "react";
 import { Send, Loader2, X, ImageIcon } from "lucide-react";
 import { createComment } from "@/lib/actions/comments";
@@ -161,7 +162,9 @@ export function CommentInput({
             </span>
           </span>
           <button
+            type="button"
             onClick={onCancelReply}
+            aria-label="antwort abbrechen"
             className="rounded-full p-0.5 hover:bg-muted"
           >
             <X className="h-3 w-3" />
@@ -173,16 +176,19 @@ export function CommentInput({
       {previewUrl && (
         <div className="mb-2 inline-flex items-start gap-1">
           <div className="relative h-[60px] w-[60px] overflow-hidden rounded-lg border border-border">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={previewUrl}
-              alt="Vorschau"
+              alt="vorschau"
+              width={60}
+              height={60}
               className="h-full w-full object-cover"
+              unoptimized
             />
           </div>
           <button
             type="button"
             onClick={clearImage}
+            aria-label="bild entfernen"
             className="rounded-full bg-background/80 p-0.5 hover:bg-muted"
           >
             <X className="h-3 w-3" />
@@ -223,6 +229,7 @@ export function CommentInput({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
+              aria-label="bild auswählen"
               className="rounded-full p-1 text-muted-foreground/60 transition-colors hover:text-muted-foreground"
             >
               <ImageIcon className="h-4 w-4" />
