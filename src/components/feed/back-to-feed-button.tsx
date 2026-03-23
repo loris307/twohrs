@@ -7,10 +7,10 @@ export function BackToFeedButton() {
   const router = useRouter();
 
   function handleClick() {
+    document.dispatchEvent(new Event("navigation-start"));
     if (window.history.length > 1) {
       router.back();
     } else {
-      document.dispatchEvent(new Event("navigation-start"));
       router.push("/feed");
     }
   }
