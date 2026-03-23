@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   API_RATE_LIMITS,
   DEFAULT_API_RATE_LIMIT,
-  getClientIp,
   getPageRateLimitForPath,
+  getRateLimitClientIp,
   getRateLimitForPath,
 } from "./rate-limit";
 
@@ -28,20 +28,20 @@ describe("getRateLimitForPath", () => {
   });
 });
 
-describe("getClientIp", () => {
+describe("getRateLimitClientIp", () => {
   it("prefers x-real-ip", () => {
     const headers = new Headers({ "x-real-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8" });
-    expect(getClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBe("1.2.3.4");
+    expect(getRateLimitClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBe("1.2.3.4");
   });
 
   it("falls back to x-forwarded-for last entry", () => {
     const headers = new Headers({ "x-forwarded-for": "spoofed, 9.8.7.6" });
-    expect(getClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBe("9.8.7.6");
+    expect(getRateLimitClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBe("9.8.7.6");
   });
 
   it("returns null when no IP headers are present", () => {
     const headers = new Headers();
-    expect(getClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBeNull();
+    expect(getRateLimitClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBeNull();
   });
 });
 

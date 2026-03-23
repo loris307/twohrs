@@ -12,7 +12,7 @@ import {
 } from "@/lib/constants";
 import {
   checkRateLimit,
-  getClientIp,
+  getRateLimitClientIp,
   getPageRateLimitForPath,
   getRateLimitForPath,
 } from "@/lib/utils/rate-limit";
@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    const ip = getClientIp(request);
+    const ip = getRateLimitClientIp(request);
     if (!ip) {
       return new NextResponse("Too Many Requests", { status: 429 });
     }
@@ -95,7 +95,7 @@ export async function middleware(request: NextRequest) {
   // Still makes one Supabase RPC per request; see architecture notes for limitations.
   const pageLimit = getPageRateLimitForPath(pathname);
   if (pageLimit !== null) {
-    const ip = getClientIp(request);
+    const ip = getRateLimitClientIp(request);
     if (!ip) {
       return new NextResponse("Too Many Requests", { status: 429 });
     }

@@ -91,7 +91,7 @@ export interface RouteRateLimit {
  * Falls back to the last entry in x-forwarded-for (Vercel-appended).
  * Returns null if no IP can be determined.
  */
-export function getClientIp(request: RequestWithHeaders): string | null {
+export function getRateLimitClientIp(request: RequestWithHeaders): string | null {
   return (
     request.headers.get("x-real-ip") ||
     request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
