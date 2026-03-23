@@ -98,7 +98,7 @@ export type TopPostAllTime = {
 
 export type TopComment = {
   username: string;
-  text: string;
+  text: string | null;
   upvote_count: number;
 };
 
@@ -106,7 +106,8 @@ export type Comment = {
   id: string;
   post_id: string;
   user_id: string;
-  text: string;
+  text: string | null;
+  image_path: string | null;
   upvote_count: number;
   parent_comment_id: string | null;
   created_at: string;

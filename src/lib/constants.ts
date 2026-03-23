@@ -94,3 +94,7 @@ export const NSFW_THRESHOLDS: Record<string, number> = {
 
 // Auto-moderation: separate counter from admin strikes (3)
 export const NSFW_STRIKE_BAN_THRESHOLD = 100;
+
+export const COMMENT_IMAGE_THUMBNAIL_SIZE = 150;
+export const COMMENT_IMAGE_REPLY_THUMBNAIL_SIZE = 120;
+export const COMMENT_IMAGE_PATH_PREFIX = 'comments';

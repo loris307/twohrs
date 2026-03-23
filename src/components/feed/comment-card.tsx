@@ -143,9 +143,11 @@ export function CommentCard({
       {/* Row 2: Comment text */}
       <div className="mt-1 flex gap-2">
         <div className="min-w-0 flex-1">
-          <p className={cn("break-words", isReply ? "text-xs" : "text-sm")}>
-            {renderTextWithMentions(comment.text)}
-          </p>
+          {comment.text && (
+            <p className={cn("break-words", isReply ? "text-xs" : "text-sm")}>
+              {renderTextWithMentions(comment.text)}
+            </p>
+          )}
         </div>
 
         {/* Upvote — right side */}

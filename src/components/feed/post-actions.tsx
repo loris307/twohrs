@@ -127,9 +127,11 @@ export function PostActions({
             <div key={comment.id} className="flex items-start gap-2 text-sm">
               <div className="min-w-0 flex-1">
                 <span className="font-medium">@{comment.profiles.username}</span>{" "}
-                <span className="text-muted-foreground whitespace-pre-wrap break-words">
-                  {renderTextWithMentions(comment.text)}
-                </span>
+                {comment.text && (
+                  <span className="text-muted-foreground whitespace-pre-wrap break-words">
+                    {renderTextWithMentions(comment.text)}
+                  </span>
+                )}
               </div>
               {comment.upvote_count > 0 && (
                 <span className="flex shrink-0 items-center gap-0.5 text-xs text-primary">

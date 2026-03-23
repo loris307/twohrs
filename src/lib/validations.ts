@@ -85,8 +85,16 @@ export const createCommentSchema = z.object({
   text: z
     .string()
     .min(1, "Kommentar darf nicht leer sein")
-    .max(MAX_COMMENT_LENGTH, `Kommentar darf maximal ${MAX_COMMENT_LENGTH} Zeichen haben`),
-});
+    .max(MAX_COMMENT_LENGTH, `Kommentar darf maximal ${MAX_COMMENT_LENGTH} Zeichen haben`)
+    .nullish(),
+  imagePath: z
+    .string()
+    .regex(/^comments\/[a-f0-9-]+\/[a-f0-9-]+\.[a-zA-Z0-9]+$/, "Ungültiger Bildpfad")
+    .nullish(),
+}).refine(
+  (data) => data.text || data.imagePath,
+  { message: "Kommentar braucht Text oder Bild" }
+);
 
 export const updateProfileSchema = z.object({
   displayName: z

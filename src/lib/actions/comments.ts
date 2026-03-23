@@ -100,7 +100,8 @@ export async function createComment(
       id: commentId,
       post_id: postId,
       user_id: user.id,
-      text: parsed.data.text,
+      text: parsed.data.text ?? null,
+      image_path: parsed.data.imagePath ?? null,
       parent_comment_id: parentCommentId ?? null,
       depth,
       root_comment_id: rootCommentId,
@@ -114,7 +115,7 @@ export async function createComment(
   }
 
   // Extract and store @mentions (admin client bypasses RLS)
-  const usernames = extractMentions(parsed.data.text);
+  const usernames = parsed.data.text ? extractMentions(parsed.data.text) : [];
   let mentionedUserIds: string[] = [];
   if (usernames.length > 0) {
     const admin = createAdminClient();
