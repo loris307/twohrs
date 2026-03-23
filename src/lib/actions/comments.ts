@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
+import { isOwnedCommentImagePath } from "@/lib/utils/private-media";
 import { MAX_COMMENTS_PER_SESSION, MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
 import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
@@ -63,11 +64,17 @@ export async function createComment(
     return { success: false, error: parsed.error.errors[0].message };
   }
 
+  const normalizedImagePath = parsed.data.imagePath?.replace(/^\/+/, "") ?? null;
+
+  if (normalizedImagePath && !isOwnedCommentImagePath(normalizedImagePath, user.id)) {
+    return { success: false, error: "Ungültiger Bildpfad" };
+  }
+
   // Verify image exists in storage when imagePath provided
-  if (parsed.data.imagePath) {
+  if (normalizedImagePath) {
     const admin = createAdminClient();
-    const folder = parsed.data.imagePath.split("/").slice(0, -1).join("/");
-    const filename = parsed.data.imagePath.split("/").pop()!;
+    const folder = normalizedImagePath.split("/").slice(0, -1).join("/");
+    const filename = normalizedImagePath.split("/").pop()!;
     const { data: files } = await admin.storage
       .from("memes")
       .list(folder, { search: filename, limit: 1 });
@@ -115,7 +122,7 @@ export async function createComment(
       post_id: postId,
       user_id: user.id,
       text: parsed.data.text ?? null,
-      image_path: parsed.data.imagePath ?? null,
+      image_path: normalizedImagePath,
       parent_comment_id: parentCommentId ?? null,
       depth,
       root_comment_id: rootCommentId,
@@ -200,7 +207,7 @@ export async function deleteComment(
   // Use admin client to fetch comment (bypasses RLS/time-gate)
   const { data: comment } = await admin
     .from("comments")
-    .select("user_id, post_id, deleted_at")
+    .select("user_id, post_id, deleted_at, image_path")
     .eq("id", commentId)
     .single();
 
@@ -229,6 +236,13 @@ export async function deleteComment(
 
   if (error) {
     return { success: false, error: "Löschen fehlgeschlagen" };
+  }
+
+  if (comment.image_path) {
+    const { error: storageError } = await admin.storage.from("memes").remove([comment.image_path]);
+    if (storageError) {
+      console.error("Comment image cleanup failed:", storageError.message);
+    }
   }
 
   revalidatePath("/feed");

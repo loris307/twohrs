@@ -83,11 +83,11 @@ export async function GET(
   if (objectPath.startsWith("comments/")) {
     const { data: comment } = await admin
       .from("comments")
-      .select("id")
+      .select("id, deleted_at")
       .eq("image_path", objectPath)
       .limit(1)
       .maybeSingle();
-    isValidPath = !!comment;
+    isValidPath = !!comment && !comment.deleted_at;
   } else {
     const { data: post } = await admin
       .from("posts")

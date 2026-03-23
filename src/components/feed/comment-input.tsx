@@ -30,7 +30,6 @@ export function CommentInput({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Cleanup preview URL on unmount
   useEffect(() => {
@@ -47,7 +46,6 @@ export function CommentInput({
     }
     setSelectedFile(null);
     setPreviewUrl(null);
-    setUploadError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -73,7 +71,6 @@ export function CommentInput({
 
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
-    setUploadError(null);
   }
 
   function handleMentionSelect(username: string, startIndex: number, endIndex: number) {
