@@ -12,8 +12,9 @@ import type { ActionResult } from "@/lib/types";
 
 export async function createComment(
   postId: string,
-  rawText: string,
-  parentCommentId?: string
+  rawText: string | null,
+  parentCommentId?: string,
+  imagePath?: string
 ): Promise<ActionResult<{ id: string }>> {
   if (!uuidSchema.safeParse(postId).success) {
     return { success: false, error: "Ungültige Post-ID" };
@@ -26,7 +27,7 @@ export async function createComment(
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
 
-  const text = normalizeText(rawText);
+  const text = rawText ? normalizeText(rawText) : null;
 
   const supabase = await createClient();
 
@@ -57,9 +58,22 @@ export async function createComment(
     };
   }
 
-  const parsed = createCommentSchema.safeParse({ text });
+  const parsed = createCommentSchema.safeParse({ text, imagePath });
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  // Verify image exists in storage when imagePath provided
+  if (parsed.data.imagePath) {
+    const admin = createAdminClient();
+    const folder = parsed.data.imagePath.split("/").slice(0, -1).join("/");
+    const filename = parsed.data.imagePath.split("/").pop()!;
+    const { data: files } = await admin.storage
+      .from("memes")
+      .list(folder, { search: filename, limit: 1 });
+    if (!files || files.length === 0) {
+      return { success: false, error: "Bild nicht gefunden" };
+    }
   }
 
   // Validate parent comment if replying

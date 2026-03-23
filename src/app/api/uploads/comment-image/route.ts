@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
-import { checkRateLimit, getRateLimitClientIp } from "@/lib/utils/rate-limit";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { MAX_IMAGE_SIZE_BYTES } from "@/lib/constants";
 import {
   detectImageMime,
@@ -32,16 +33,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // 3. Rate-limit check
-  const ip = getRateLimitClientIp(request);
-  if (ip) {
-    const rateLimit = await checkRateLimit(`comment-image:${ip}`, 100, 60_000);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Zu viele Anfragen. Bitte warte kurz." },
-        { status: 429 },
-      );
-    }
+  // 3. Rate-limit check (100 uploads per day, keyed by user ID)
+  const rateLimit = await checkRateLimit(
+    `comment-image:${user.id}`,
+    100,
+    86_400_000,
+  );
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Zu viele Uploads. Maximal 100 pro Tag erlaubt." },
+      { status: 429 },
+    );
   }
 
   // 4. Read file from FormData
@@ -112,11 +114,12 @@ export async function POST(request: Request) {
     );
   }
 
-  // 10. Upload to storage
+  // 10. Upload to storage (admin client bypasses RLS folder-name policy)
   const ext = getExtensionFromMime(detectedMime);
   const imagePath = `comments/${user.id}/${crypto.randomUUID()}.${ext}`;
+  const admin = createAdminClient();
 
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await admin.storage
     .from("memes")
     .upload(imagePath, cleanBuffer, {
       cacheControl: "3600",

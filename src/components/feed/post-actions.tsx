@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback } from "react";
 import Link from "next/link";
-import { MessageCircle, ArrowBigUp } from "lucide-react";
+import { MessageCircle, ArrowBigUp, ImageIcon } from "lucide-react";
 import { UpvoteButton } from "./upvote-button";
 import { ShareButton } from "./share-button";
 import { CommentThread } from "./comment-thread";
@@ -127,8 +127,17 @@ export function PostActions({
             <div key={comment.id} className="flex items-start gap-2 text-sm">
               <div className="min-w-0 flex-1">
                 <span className="font-medium">@{comment.profiles.username}</span>{" "}
+                {comment.image_path && !comment.text && (
+                  <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                    <ImageIcon className="h-3 w-3" />
+                    <span>bild</span>
+                  </span>
+                )}
                 {comment.text && (
                   <span className="text-muted-foreground whitespace-pre-wrap break-words">
+                    {comment.image_path && (
+                      <ImageIcon className="mr-0.5 inline h-3 w-3 align-text-bottom" />
+                    )}
                     {renderTextWithMentions(comment.text)}
                   </span>
                 )}

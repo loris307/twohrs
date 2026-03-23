@@ -8,9 +8,14 @@ import { toggleCommentVote, deleteComment } from "@/lib/actions/comments";
 import { formatRelativeTime, formatNumber } from "@/lib/utils/format";
 import { profilePath } from "@/lib/utils/profile-path";
 import { renderTextWithMentions } from "@/lib/utils/render-mentions";
+import { FeedImageLightbox } from "@/components/feed/feed-image-lightbox";
 import { cn } from "@/lib/utils/cn";
 import { toast } from "sonner";
-import { MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
+import {
+  MAX_COMMENT_THREAD_DEPTH,
+  COMMENT_IMAGE_THUMBNAIL_SIZE,
+  COMMENT_IMAGE_REPLY_THUMBNAIL_SIZE,
+} from "@/lib/constants";
 import type { CommentListItem } from "@/lib/types";
 
 interface CommentCardProps {
@@ -41,6 +46,9 @@ export function CommentCard({
   const canReply = !!onReply && !isDeleted && comment.depth < MAX_COMMENT_THREAD_DEPTH;
 
   const avatarSize = isReply ? 20 : 24;
+  const thumbSize = isReply
+    ? COMMENT_IMAGE_REPLY_THUMBNAIL_SIZE
+    : COMMENT_IMAGE_THUMBNAIL_SIZE;
 
   function handleVote() {
     if (isDeleted) return;
@@ -140,9 +148,22 @@ export function CommentCard({
         </span>
       </div>
 
-      {/* Row 2: Comment text */}
+      {/* Row 2: Image thumbnail + text */}
       <div className="mt-1 flex gap-2">
         <div className="min-w-0 flex-1">
+          {comment.image_path && (
+            <div className="mb-1">
+              <FeedImageLightbox
+                src={`/media/memes/${comment.image_path}`}
+                alt="Kommentar-Bild"
+                width={thumbSize}
+                height={thumbSize}
+                className="rounded-lg object-cover"
+                style={{ maxWidth: thumbSize, maxHeight: thumbSize }}
+                unoptimized
+              />
+            </div>
+          )}
           {comment.text && (
             <p className={cn("break-words", isReply ? "text-xs" : "text-sm")}>
               {renderTextWithMentions(comment.text)}
