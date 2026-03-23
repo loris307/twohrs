@@ -1,8 +1,8 @@
+import { createElement } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getCachedLandingSnapshot } from "@/lib/queries/landing";
 import { isAppOpen } from "@/lib/utils/time";
-import { getLatestTopPost } from "@/lib/queries/leaderboard";
 import { LandingContent } from "./landing-content";
 
 export default async function LandingPage() {
@@ -15,10 +15,12 @@ export default async function LandingPage() {
     redirect("/feed");
   }
 
-  const [yesterdayTopPost, { count: userCount }] = await Promise.all([
-    getLatestTopPost(),
-    createAdminClient().from("profiles").select("*", { count: "exact", head: true }),
-  ]);
+  const { yesterdayTopPost, userCount } = await getCachedLandingSnapshot();
 
-  return <LandingContent isLoggedIn={!!user} isAdminOnly={false} yesterdayTopPost={yesterdayTopPost} userCount={userCount ?? 0} />;
+  return createElement(LandingContent, {
+    isLoggedIn: !!user,
+    isAdminOnly: false,
+    yesterdayTopPost,
+    userCount,
+  });
 }

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getRateLimitForPath, API_RATE_LIMITS, DEFAULT_API_RATE_LIMIT } from "./rate-limit";
+import {
+  API_RATE_LIMITS,
+  DEFAULT_API_RATE_LIMIT,
+  getPageRateLimitForPath,
+  getRateLimitClientIp,
+  getRateLimitForPath,
+} from "./rate-limit";
 
 describe("getRateLimitForPath", () => {
   it("returns configured limit for exact match", () => {
@@ -19,6 +25,33 @@ describe("getRateLimitForPath", () => {
     expect(patterns).toContain("/api/og");
     expect(patterns).toContain("/api/export");
     expect(patterns).toContain("/api/feed");
+  });
+});
+
+describe("getRateLimitClientIp", () => {
+  it("prefers x-real-ip", () => {
+    const headers = new Headers({ "x-real-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8" });
+    expect(getRateLimitClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBe("1.2.3.4");
+  });
+
+  it("falls back to x-forwarded-for last entry", () => {
+    const headers = new Headers({ "x-forwarded-for": "spoofed, 9.8.7.6" });
+    expect(getRateLimitClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBe("9.8.7.6");
+  });
+
+  it("returns null when no IP headers are present", () => {
+    const headers = new Headers();
+    expect(getRateLimitClientIp({ headers: { get: (name: string) => headers.get(name) } })).toBeNull();
+  });
+});
+
+describe("getPageRateLimitForPath", () => {
+  it("returns the landing page limit for /", () => {
+    expect(getPageRateLimitForPath("/")).toBe(20);
+  });
+
+  it("returns null for non-rate-limited pages", () => {
+    expect(getPageRateLimitForPath("/about")).toBeNull();
   });
 });
 

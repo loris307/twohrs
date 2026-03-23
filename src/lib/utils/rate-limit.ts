@@ -9,6 +9,12 @@ export interface RateLimitResult {
   remaining: number;
 }
 
+interface RequestWithHeaders {
+  headers: {
+    get(name: string): string | null;
+  };
+}
+
 const RPC_TIMEOUT_MS = 5_000;
 
 /**
@@ -79,6 +85,20 @@ export interface RouteRateLimit {
   limit: number;
 }
 
+/**
+ * Extract the client IP from request headers.
+ * Prefers x-real-ip (set by Vercel, not spoofable).
+ * Falls back to the last entry in x-forwarded-for (Vercel-appended).
+ * Returns null if no IP can be determined.
+ */
+export function getRateLimitClientIp(request: RequestWithHeaders): string | null {
+  return (
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+    null
+  );
+}
+
 export const API_RATE_LIMITS: RouteRateLimit[] = [
   { pattern: "/api/og", limit: 10 },
   { pattern: "/api/export", limit: 2 },
@@ -86,6 +106,10 @@ export const API_RATE_LIMITS: RouteRateLimit[] = [
   { pattern: "/api/feed", limit: 60 },
   { pattern: "/api/comments", limit: 60 },
   { pattern: "/api/mentions", limit: 60 },
+];
+
+export const PAGE_RATE_LIMITS: RouteRateLimit[] = [
+  { pattern: "/", limit: 20 },
 ];
 
 export const DEFAULT_API_RATE_LIMIT = 30;
@@ -100,4 +124,13 @@ export function getRateLimitForPath(pathname: string): number {
     }
   }
   return DEFAULT_API_RATE_LIMIT;
+}
+
+export function getPageRateLimitForPath(pathname: string): number | null {
+  for (const route of PAGE_RATE_LIMITS) {
+    if (pathname === route.pattern) {
+      return route.limit;
+    }
+  }
+  return null;
 }
