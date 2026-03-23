@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useInfiniteFeed } from "@/lib/hooks/use-infinite-feed";
 import { useNewPosts } from "@/lib/hooks/use-new-posts";
@@ -64,12 +64,41 @@ export function PostGrid({
     router.refresh();
   }, [resetNewPosts, router]);
 
+  // Save feed state before navigating to a post (covers PostCardLink clicks + Link clicks)
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      const anchor = (e.target as HTMLElement).closest("a");
+      const isPostLink = anchor?.getAttribute("href")?.startsWith("/post/");
+      // For programmatic navigation via PostCardLink (no anchor)
+      const isCardClick = !anchor && (e.target as HTMLElement).closest("[data-feed-grid]");
+
+      if (isPostLink || isCardClick) {
+        sessionStorage.setItem("feed-scroll-y", String(window.scrollY));
+        document.dispatchEvent(new CustomEvent("feed-save-state"));
+      }
+    }
+    document.addEventListener("click", handleClick, { capture: true });
+    return () => document.removeEventListener("click", handleClick, { capture: true });
+  }, []);
+
+  // Restore scroll position when returning from a post detail page
+  useEffect(() => {
+    const savedY = sessionStorage.getItem("feed-scroll-y");
+    if (savedY) {
+      sessionStorage.removeItem("feed-scroll-y");
+      // Wait for restored posts to render before scrolling
+      requestAnimationFrame(() => {
+        window.scrollTo(0, Number(savedY));
+      });
+    }
+  }, []);
+
   if (posts.length === 0) {
     return <FeedEmptyState tab={tab} />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-feed-grid>
       {hasNewPosts && (
         <NewPostsBanner count={newPostCount} onClick={handleNewPostsClick} />
       )}
