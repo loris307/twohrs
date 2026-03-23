@@ -8,11 +8,7 @@ export function BackToFeedButton() {
 
   function handleClick() {
     document.dispatchEvent(new Event("navigation-start"));
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/feed");
-    }
+    router.push("/feed");
   }
 
   return (
