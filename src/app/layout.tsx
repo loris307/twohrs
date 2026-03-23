@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { ServiceWorkerRegister } from "@/components/layout/service-worker-register";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { shouldEnableSpeedInsights } from "@/lib/utils/observability";
 import "./globals.css";
 
 const inter = Inter({
@@ -66,7 +67,7 @@ export default function RootLayout({
           richColors
           closeButton
         />
-        <SpeedInsights />
+        {shouldEnableSpeedInsights() ? <SpeedInsights /> : null}
       </body>
     </html>
   );

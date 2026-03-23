@@ -22,8 +22,3 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim())
   );
 });
-
-self.addEventListener("fetch", () => {
-  // Network-only: all requests go through the normal network path.
-  return;
-});
