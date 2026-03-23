@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPostById } from "@/lib/queries/posts";
@@ -9,6 +8,7 @@ import { getPrivateProfileById } from "@/lib/queries/private-profile";
 import { PostCard } from "@/components/feed/post-card";
 import { PostComments } from "./post-comments";
 import { AppShell } from "@/app/(app)/app-shell";
+import { BackToFeedButton } from "@/components/feed/back-to-feed-button";
 import { isAppOpen } from "@/lib/utils/time";
 import { OPEN_HOUR, CLOSE_HOUR } from "@/lib/constants";
 import { getPostDetailContentClassName } from "@/lib/utils/post-detail-layout";
@@ -180,13 +180,7 @@ export default async function PostPage({ params }: PostPageProps) {
       moderationStrikes={profile?.moderation_strikes ?? 0}
     >
       <div className={getPostDetailContentClassName()}>
-        <Link
-          href="/feed"
-          className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Zurück zum Feed
-        </Link>
+        <BackToFeedButton />
 
         <PostCard post={post} currentUserId={user.id} hideCommentSection isAdmin={isAdmin} />
 
