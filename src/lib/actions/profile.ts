@@ -14,6 +14,7 @@ import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { hasEmailIdentity } from "@/lib/utils/auth-email";
 import { checkEmailPolicy } from "@/lib/utils/signup-guards";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { getOwnedMemesFolderPrefixes } from "@/lib/utils/private-media";
 import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB, getBaseUrl } from "@/lib/constants";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/public-env";
 import type { ActionResult } from "@/lib/types";
@@ -459,15 +460,17 @@ export async function deleteAccount(formData: FormData): Promise<ActionResult> {
       .remove(avatarFiles.map((f) => `${user.id}/${f.name}`));
   }
 
-  // Delete meme files from storage (including user's regular posts)
-  const { data: memeFiles } = await adminClient.storage
-    .from("memes")
-    .list(user.id);
-
-  if (memeFiles && memeFiles.length > 0) {
-    await adminClient.storage
+  // Delete meme files from storage (regular posts + comment images)
+  for (const prefix of getOwnedMemesFolderPrefixes(user.id)) {
+    const { data: memeFiles } = await adminClient.storage
       .from("memes")
-      .remove(memeFiles.map((f) => `${user.id}/${f.name}`));
+      .list(prefix);
+
+    if (memeFiles && memeFiles.length > 0) {
+      await adminClient.storage
+        .from("memes")
+        .remove(memeFiles.map((f) => `${prefix}/${f.name}`));
+    }
   }
 
   // Delete audio files from storage (user's daily audio posts)

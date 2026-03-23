@@ -77,15 +77,28 @@ export async function GET(
     return NextResponse.json({ error: "App ist geschlossen" }, { status: 403 });
   }
 
-  // Verify the path is referenced by an actual post (prevents guessing arbitrary storage keys)
-  const { data: post } = await admin
-    .from("posts")
-    .select("id")
-    .eq("image_path", objectPath)
-    .limit(1)
-    .maybeSingle();
+  // Verify the path is referenced by an actual post or comment (prevents guessing arbitrary storage keys)
+  let isValidPath = false;
 
-  if (!post) {
+  if (objectPath.startsWith("comments/")) {
+    const { data: comment } = await admin
+      .from("comments")
+      .select("id, deleted_at")
+      .eq("image_path", objectPath)
+      .limit(1)
+      .maybeSingle();
+    isValidPath = !!comment && !comment.deleted_at;
+  } else {
+    const { data: post } = await admin
+      .from("posts")
+      .select("id")
+      .eq("image_path", objectPath)
+      .limit(1)
+      .maybeSingle();
+    isValidPath = !!post;
+  }
+
+  if (!isValidPath) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

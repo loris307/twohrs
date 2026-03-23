@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NSFW_STRIKE_BAN_THRESHOLD } from "@/lib/constants";
 import { hashNormalizedAuthEmail } from "@/lib/utils/auth-email";
+import { getOwnedMemesFolderPrefixes } from "@/lib/utils/private-media";
 
 export type StrikeResult = {
   newStrikes: number;
@@ -64,15 +65,17 @@ export async function addModerationStrike(
         .remove(avatarFiles.map((f) => `${userId}/${f.name}`));
     }
 
-    // Delete meme files
-    const { data: memeFiles } = await adminClient.storage
-      .from("memes")
-      .list(userId);
-
-    if (memeFiles && memeFiles.length > 0) {
-      await adminClient.storage
+    // Delete meme files (regular posts + comment images)
+    for (const prefix of getOwnedMemesFolderPrefixes(userId)) {
+      const { data: memeFiles } = await adminClient.storage
         .from("memes")
-        .remove(memeFiles.map((f) => `${userId}/${f.name}`));
+        .list(prefix);
+
+      if (memeFiles && memeFiles.length > 0) {
+        await adminClient.storage
+          .from("memes")
+          .remove(memeFiles.map((f) => `${prefix}/${f.name}`));
+      }
     }
 
     // Delete audio files

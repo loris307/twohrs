@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
+import {
+  isOwnedCommentImagePath,
+  storageListHasExactName,
+} from "@/lib/utils/private-media";
 import { MAX_COMMENTS_PER_SESSION, MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
 import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
@@ -12,8 +16,9 @@ import type { ActionResult } from "@/lib/types";
 
 export async function createComment(
   postId: string,
-  rawText: string,
-  parentCommentId?: string
+  rawText: string | null,
+  parentCommentId?: string,
+  imagePath?: string
 ): Promise<ActionResult<{ id: string }>> {
   if (!uuidSchema.safeParse(postId).success) {
     return { success: false, error: "Ungültige Post-ID" };
@@ -26,7 +31,7 @@ export async function createComment(
     return { success: false, error: "Die App ist gerade geschlossen" };
   }
 
-  const text = normalizeText(rawText);
+  const text = rawText ? normalizeText(rawText) : null;
 
   const supabase = await createClient();
 
@@ -57,9 +62,28 @@ export async function createComment(
     };
   }
 
-  const parsed = createCommentSchema.safeParse({ text });
+  const parsed = createCommentSchema.safeParse({ text, imagePath });
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  const normalizedImagePath = parsed.data.imagePath?.replace(/^\/+/, "") ?? null;
+
+  if (normalizedImagePath && !isOwnedCommentImagePath(normalizedImagePath, user.id)) {
+    return { success: false, error: "Ungültiger Bildpfad" };
+  }
+
+  // Verify image exists in storage when imagePath provided
+  if (normalizedImagePath) {
+    const admin = createAdminClient();
+    const folder = normalizedImagePath.split("/").slice(0, -1).join("/");
+    const filename = normalizedImagePath.split("/").pop()!;
+    const { data: files, error: listError } = await admin.storage
+      .from("memes")
+      .list(folder, { search: filename, limit: 100 });
+    if (listError || !storageListHasExactName(files, filename)) {
+      return { success: false, error: "Bild nicht gefunden" };
+    }
   }
 
   // Validate parent comment if replying
@@ -100,7 +124,8 @@ export async function createComment(
       id: commentId,
       post_id: postId,
       user_id: user.id,
-      text: parsed.data.text,
+      text: parsed.data.text ?? null,
+      image_path: normalizedImagePath,
       parent_comment_id: parentCommentId ?? null,
       depth,
       root_comment_id: rootCommentId,
@@ -114,7 +139,7 @@ export async function createComment(
   }
 
   // Extract and store @mentions (admin client bypasses RLS)
-  const usernames = extractMentions(parsed.data.text);
+  const usernames = parsed.data.text ? extractMentions(parsed.data.text) : [];
   let mentionedUserIds: string[] = [];
   if (usernames.length > 0) {
     const admin = createAdminClient();
@@ -185,7 +210,7 @@ export async function deleteComment(
   // Use admin client to fetch comment (bypasses RLS/time-gate)
   const { data: comment } = await admin
     .from("comments")
-    .select("user_id, post_id, deleted_at")
+    .select("user_id, post_id, deleted_at, image_path")
     .eq("id", commentId)
     .single();
 
@@ -214,6 +239,13 @@ export async function deleteComment(
 
   if (error) {
     return { success: false, error: "Löschen fehlgeschlagen" };
+  }
+
+  if (comment.image_path) {
+    const { error: storageError } = await admin.storage.from("memes").remove([comment.image_path]);
+    if (storageError) {
+      console.error("Comment image cleanup failed:", storageError.message);
+    }
   }
 
   revalidatePath("/feed");

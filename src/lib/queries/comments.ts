@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { CommentListItem, CommentPage } from "@/lib/types";
 
 const COMMENT_SELECT = `
-  id, post_id, user_id, text, upvote_count, parent_comment_id,
+  id, post_id, user_id, text, image_path, upvote_count, parent_comment_id,
   root_comment_id, depth, reply_count, deleted_at, created_at,
   profiles!comments_user_id_fkey (username, display_name, avatar_url)
 `;
@@ -33,7 +33,8 @@ async function enrichCommentsWithVotes(
     id: comment.id as string,
     post_id: comment.post_id as string,
     user_id: comment.user_id as string,
-    text: comment.text as string,
+    text: comment.text as string | null,
+    image_path: comment.image_path as string | null,
     upvote_count: comment.upvote_count as number,
     parent_comment_id: comment.parent_comment_id as string | null,
     root_comment_id: comment.root_comment_id as string,

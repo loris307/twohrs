@@ -20,6 +20,12 @@ type LatestTopPostMediaCandidate = {
 const ARCHIVED_PUBLIC_MEDIA_CACHE_CONTROL = "public, max-age=86400";
 const LIVE_TOP_POST_PUBLIC_MEDIA_CACHE_CONTROL = "public, max-age=0, s-maxage=60, must-revalidate";
 
+function isPathUnderPrefix(path: string, prefix: string): boolean {
+  const normalized = normalizeStorageObjectPath(path);
+  if (!normalized) return false;
+  return normalized.startsWith(`${prefix}/`);
+}
+
 /**
  * Strip leading slashes and reject traversal patterns.
  * Returns the normalized path, or `null` if the path is invalid.
@@ -37,9 +43,35 @@ export function normalizeStorageObjectPath(path: string): string | null {
  * Leading slashes are stripped before the check.
  */
 export function isOwnedStoragePath(path: string, userId: string): boolean {
-  const normalized = normalizeStorageObjectPath(path);
-  if (!normalized) return false;
-  return normalized.startsWith(`${userId}/`);
+  return isPathUnderPrefix(path, userId);
+}
+
+/**
+ * Check whether `path` belongs to a user's comment-image folder
+ * (i.e. starts with `comments/<userId>/`).
+ */
+export function isOwnedCommentImagePath(path: string, userId: string): boolean {
+  return isPathUnderPrefix(path, `comments/${userId}`);
+}
+
+/**
+ * List all memes-bucket folders that contain user-owned media requiring
+ * immediate cleanup on account deletion.
+ */
+export function getOwnedMemesFolderPrefixes(userId: string): string[] {
+  return [userId, `comments/${userId}`];
+}
+
+/**
+ * Check whether a storage listing contains an exact object-name match.
+ * Supabase `search` can return substring matches, so callers still need this
+ * final equality check before trusting the result.
+ */
+export function storageListHasExactName(
+  files: Array<{ name: string }> | null | undefined,
+  fileName: string,
+): boolean {
+  return Array.isArray(files) && files.some((file) => file.name === fileName);
 }
 
 /**

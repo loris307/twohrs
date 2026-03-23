@@ -41,6 +41,33 @@ interface FeedImageLightboxMotionStyleOptions {
   isVisible: boolean;
 }
 
+interface FeedImageLightboxContentDimensionsOptions {
+  fallbackWidth: number;
+  fallbackHeight: number;
+  naturalWidth?: number;
+  naturalHeight?: number;
+}
+
+interface FeedImageLightboxOriginRectOptions {
+  viewportRect: FeedImageLightboxRect;
+  triggerRect: Pick<FeedImageLightboxRect, "left" | "top" | "width" | "height">;
+  imageRect?: Pick<FeedImageLightboxRect, "left" | "top" | "width" | "height">;
+}
+
+export function getFeedImageLightboxClosedPresentation(fullWidth: boolean) {
+  if (fullWidth) {
+    return {
+      triggerClassName: "w-full cursor-zoom-in",
+      imageClassName: "w-full object-contain",
+    };
+  }
+
+  return {
+    triggerClassName: "inline-block cursor-zoom-in",
+    imageClassName: "h-auto max-w-full object-contain",
+  };
+}
+
 export function getFeedImageLightboxPresentation(isVisible: boolean) {
   return {
     overlayClassName: cn(
@@ -87,6 +114,45 @@ export function getFeedImageLightboxTargetRect({
     height,
     left: viewportLeft + insetLeft + padding + (usableWidth - width) / 2,
     top: viewportTop + insetTop + padding + (usableHeight - height) / 2,
+  };
+}
+
+export function getFeedImageLightboxContentDimensions({
+  fallbackWidth,
+  fallbackHeight,
+  naturalWidth,
+  naturalHeight,
+}: FeedImageLightboxContentDimensionsOptions): Pick<FeedImageLightboxRect, "width" | "height"> {
+  if (
+    typeof naturalWidth === "number" &&
+    naturalWidth > 0 &&
+    typeof naturalHeight === "number" &&
+    naturalHeight > 0
+  ) {
+    return {
+      width: naturalWidth,
+      height: naturalHeight,
+    };
+  }
+
+  return {
+    width: fallbackWidth,
+    height: fallbackHeight,
+  };
+}
+
+export function getFeedImageLightboxOriginRect({
+  viewportRect,
+  triggerRect,
+  imageRect,
+}: FeedImageLightboxOriginRectOptions): FeedImageLightboxRect {
+  const rect = imageRect ?? triggerRect;
+
+  return {
+    top: rect.top + viewportRect.top,
+    left: rect.left + viewportRect.left,
+    width: rect.width,
+    height: rect.height,
   };
 }
 
