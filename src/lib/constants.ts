@@ -25,6 +25,10 @@ export const TIMEZONE = "Europe/Berlin";
 
 export const MAX_POSTS_PER_SESSION = 100;
 export const MAX_COMMENTS_PER_SESSION = 100;
+export const VOTE_ACTION_RATE_LIMIT_MAX = 30;
+export const VOTE_ACTION_RATE_LIMIT_WINDOW_MS = 60_000;
+export const RELATION_ACTION_RATE_LIMIT_MAX = 20;
+export const RELATION_ACTION_RATE_LIMIT_WINDOW_MS = 60_000;
 export const MAX_CAPTION_LENGTH = 280;
 export const MAX_COMMENT_LENGTH = 500;
 export const MAX_EMAIL_LENGTH = 254;

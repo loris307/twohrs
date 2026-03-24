@@ -21,5 +21,7 @@ jobs:
         with:
           fail-on-severity: high
           comment-summary-in-pr: always
+          retry-on-snapshot-warnings: true
+          retry-on-snapshot-warnings-timeout: 180
           license-check: true
-          deny-licenses: GPL-3.0, AGPL-3.0
+          allow-licenses: MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, 0BSD, MIT-0, Unlicense, CC0-1.0, CC-BY-4.0, Python-2.0, Artistic-2.0, BlueOak-1.0.0, Zlib, OpenSSL, Unicode-DFS-2016, OFL-1.1, MPL-2.0, LGPL-2.1-only, LGPL-2.1-or-later, LGPL-3.0-only, LGPL-3.0-or-later, CDDL-1.0, CDDL-1.1, EPL-2.0, WTFPL

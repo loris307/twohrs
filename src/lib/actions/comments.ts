@@ -8,10 +8,16 @@ import {
   isOwnedCommentImagePath,
   storageListHasExactName,
 } from "@/lib/utils/private-media";
-import { MAX_COMMENTS_PER_SESSION, MAX_COMMENT_THREAD_DEPTH } from "@/lib/constants";
+import {
+  MAX_COMMENTS_PER_SESSION,
+  MAX_COMMENT_THREAD_DEPTH,
+  VOTE_ACTION_RATE_LIMIT_MAX,
+  VOTE_ACTION_RATE_LIMIT_WINDOW_MS,
+} from "@/lib/constants";
 import { createCommentSchema, uuidSchema } from "@/lib/validations";
 import { extractMentions } from "@/lib/utils/mentions";
 import { normalizeText } from "@/lib/utils/normalize-text";
+import { checkServerActionRateLimit } from "@/lib/utils/server-action-rate-limit";
 import type { ActionResult } from "@/lib/types";
 
 export async function createComment(
@@ -272,6 +278,16 @@ export async function toggleCommentVote(
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "vote:comment",
+    user.id,
+    VOTE_ACTION_RATE_LIMIT_MAX,
+    VOTE_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   // Reject vote on soft-deleted comment

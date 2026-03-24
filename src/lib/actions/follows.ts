@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  RELATION_ACTION_RATE_LIMIT_MAX,
+  RELATION_ACTION_RATE_LIMIT_WINDOW_MS,
+} from "@/lib/constants";
+import { checkServerActionRateLimit } from "@/lib/utils/server-action-rate-limit";
 import { isAppOpen } from "@/lib/utils/time";
 import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
@@ -27,6 +32,16 @@ export async function followUser(followingId: string): Promise<ActionResult> {
 
   if (user.id === followingId) {
     return { success: false, error: "Du kannst dir nicht selbst folgen" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "follow:user",
+    user.id,
+    RELATION_ACTION_RATE_LIMIT_MAX,
+    RELATION_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const { error } = await supabase.from("follows").insert({
@@ -58,6 +73,16 @@ export async function unfollowUser(followingId: string): Promise<ActionResult> {
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "follow:user",
+    user.id,
+    RELATION_ACTION_RATE_LIMIT_MAX,
+    RELATION_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const { error } = await supabase

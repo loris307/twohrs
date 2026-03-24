@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  RELATION_ACTION_RATE_LIMIT_MAX,
+  RELATION_ACTION_RATE_LIMIT_WINDOW_MS,
+} from "@/lib/constants";
+import { checkServerActionRateLimit } from "@/lib/utils/server-action-rate-limit";
 import { isAppOpen } from "@/lib/utils/time";
 import type { ActionResult } from "@/lib/types";
 
@@ -18,6 +23,16 @@ export async function followHashtag(hashtag: string): Promise<ActionResult> {
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "follow:hashtag",
+    user.id,
+    RELATION_ACTION_RATE_LIMIT_MAX,
+    RELATION_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const normalized = hashtag.toLowerCase().trim();
@@ -50,6 +65,16 @@ export async function unfollowHashtag(hashtag: string): Promise<ActionResult> {
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "follow:hashtag",
+    user.id,
+    RELATION_ACTION_RATE_LIMIT_MAX,
+    RELATION_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   const { error } = await supabase

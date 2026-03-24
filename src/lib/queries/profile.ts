@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, PublicProfile } from "@/lib/types";
 
+export const PUBLIC_PROFILE_SELECT =
+  "id, username, display_name, avatar_url, bio, total_upvotes_received, total_posts_created, days_won, created_at";
+
 export async function getProfile(
   username: string
 ): Promise<PublicProfile | null> {
@@ -8,7 +11,7 @@ export async function getProfile(
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, bio, total_upvotes_received, total_posts_created, days_won, created_at")
+    .select(PUBLIC_PROFILE_SELECT)
     .eq("username", username)
     .single();
 
