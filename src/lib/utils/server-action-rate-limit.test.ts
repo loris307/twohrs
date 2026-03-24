@@ -5,6 +5,8 @@ const { headersMock, checkRateLimitMock } = vi.hoisted(() => ({
   checkRateLimitMock: vi.fn(),
 }));
 
+vi.mock("server-only", () => ({}));
+
 vi.mock("next/headers", () => ({
   headers: headersMock,
 }));

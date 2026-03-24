@@ -1,3 +1,4 @@
+import "server-only";
 import { headers } from "next/headers";
 import { checkRateLimit, getRateLimitClientIp } from "@/lib/utils/rate-limit";
 import type { ActionResult } from "@/lib/types";

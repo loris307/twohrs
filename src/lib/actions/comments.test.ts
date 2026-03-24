@@ -68,7 +68,7 @@ describe("toggleCommentVote", () => {
       30,
       60_000
     );
-    expect(fromMock).not.toHaveBeenCalledWith("comments");
+    expect(fromMock).not.toHaveBeenCalled();
     expect(revalidatePathMock).not.toHaveBeenCalled();
   });
 });
