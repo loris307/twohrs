@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import {
+  VOTE_ACTION_RATE_LIMIT_MAX,
+  VOTE_ACTION_RATE_LIMIT_WINDOW_MS,
+} from "@/lib/constants";
+import { checkServerActionRateLimit } from "@/lib/utils/server-action-rate-limit";
 import { isAppOpen } from "@/lib/utils/time";
 import { uuidSchema } from "@/lib/validations";
 import type { ActionResult } from "@/lib/types";
@@ -25,6 +30,16 @@ export async function toggleVote(
 
   if (!user) {
     return { success: false, error: "Nicht eingeloggt" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "vote:post",
+    user.id,
+    VOTE_ACTION_RATE_LIMIT_MAX,
+    VOTE_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
   }
 
   // Atomic vote toggle via DB function (prevents race conditions + self-voting)
