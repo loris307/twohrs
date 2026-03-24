@@ -1,3 +1,4 @@
+import { createElement, type ReactNode } from "react";
 import Link from "next/link";
 import { profilePath } from "@/lib/utils/profile-path";
 
@@ -5,7 +6,13 @@ const MENTION_REGEX = /@([a-z0-9_]{3,20})\b/g;
 const URL_REGEX = /https?:\/\/[^\s<>)"]+/g;
 const HASHTAG_REGEX = /#([a-zA-Z0-9_\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]+)/g;
 
-export function renderTextWithMentions(text: string): React.ReactNode[] {
+export function renderTextWithMentions(
+  text: string | null | undefined
+): ReactNode[] {
+  if (typeof text !== "string" || text.length === 0) {
+    return [];
+  }
+
   // Collect all matches (mentions, URLs, hashtags) with their positions
   const tokens: { index: number; length: number; type: "mention" | "url" | "hashtag"; value: string }[] = [];
 
@@ -47,7 +54,7 @@ export function renderTextWithMentions(text: string): React.ReactNode[] {
     }
   }
 
-  const parts: React.ReactNode[] = [];
+  const parts: ReactNode[] = [];
   let lastIndex = 0;
 
   for (const token of filtered) {
@@ -57,23 +64,27 @@ export function renderTextWithMentions(text: string): React.ReactNode[] {
 
     if (token.type === "mention") {
       parts.push(
-        <Link
-          key={`mention-${token.index}`}
-          href={profilePath(token.value)}
-          className="font-medium text-primary hover:underline"
-        >
-          @{token.value}
-        </Link>
+        createElement(
+          Link,
+          {
+            key: `mention-${token.index}`,
+            href: profilePath(token.value),
+            className: "font-medium text-primary hover:underline",
+          },
+          `@${token.value}`
+        )
       );
     } else if (token.type === "hashtag") {
       parts.push(
-        <Link
-          key={`hashtag-${token.index}`}
-          href={`/search/hashtag/${token.value}`}
-          className="font-medium text-primary hover:underline"
-        >
-          #{token.value}
-        </Link>
+        createElement(
+          Link,
+          {
+            key: `hashtag-${token.index}`,
+            href: `/search/hashtag/${token.value}`,
+            className: "font-medium text-primary hover:underline",
+          },
+          `#${token.value}`
+        )
       );
     } else {
       // Strip trailing punctuation that's likely not part of the URL
@@ -85,15 +96,17 @@ export function renderTextWithMentions(text: string): React.ReactNode[] {
       }
 
       parts.push(
-        <a
-          key={`url-${token.index}`}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-primary hover:underline"
-        >
-          {url}
-        </a>
+        createElement(
+          "a",
+          {
+            key: `url-${token.index}`,
+            href: url,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "font-medium text-primary hover:underline",
+          },
+          url
+        )
       );
       if (trailing) {
         parts.push(trailing);
