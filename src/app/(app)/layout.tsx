@@ -35,6 +35,7 @@ export default async function AppLayout({
       username={profile?.username}
       unreadMentionCount={unreadMentionCount}
       moderationStrikes={profile?.moderation_strikes ?? 0}
+      isAdmin={profile?.is_admin ?? false}
       showRecoveryBanner={showRecoveryBanner}
     >
       {children}

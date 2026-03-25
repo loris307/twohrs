@@ -178,6 +178,7 @@ export default async function PostPage({ params }: PostPageProps) {
       username={profile?.username}
       unreadMentionCount={unreadMentionCount}
       moderationStrikes={profile?.moderation_strikes ?? 0}
+      isAdmin={isAdmin}
     >
       <div className={getPostDetailContentClassName()}>
         <BackToFeedButton />

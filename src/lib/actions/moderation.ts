@@ -7,7 +7,12 @@ import type { ActionResult } from "@/lib/types";
 
 export async function adminDeletePost(
   postId: string
-): Promise<ActionResult<{ strikes: number; accountDeleted: boolean; username: string }>> {
+): Promise<ActionResult<{
+  strikes: number;
+  accountDeleted: boolean;
+  username: string;
+  strikeApplied: boolean;
+}>> {
   if (!uuidSchema.safeParse(postId).success) {
     return { success: false, error: "Ungültige Post-ID" };
   }
@@ -56,7 +61,7 @@ export async function adminDeletePost(
   // Get author profile for username and current strikes
   const { data: authorProfile } = await adminClient
     .from("profiles")
-    .select("username, moderation_strikes")
+    .select("username, moderation_strikes, is_admin")
     .eq("id", post.user_id)
     .single();
 
@@ -82,7 +87,20 @@ export async function adminDeletePost(
     return { success: false, error: "Löschen fehlgeschlagen" };
   }
 
-  // Increment moderation strikes (shared logic with auto-moderation)
+  if (authorProfile.is_admin) {
+    revalidatePath("/feed");
+
+    return {
+      success: true,
+      data: {
+        strikes: authorProfile.moderation_strikes,
+        accountDeleted: false,
+        username: authorProfile.username,
+        strikeApplied: false,
+      },
+    };
+  }
+
   const { addModerationStrike } = await import("@/lib/moderation/strikes");
   const { newStrikes, accountDeleted } = await addModerationStrike(post.user_id);
 
@@ -94,6 +112,7 @@ export async function adminDeletePost(
       strikes: newStrikes,
       accountDeleted,
       username: authorProfile.username,
+      strikeApplied: true,
     },
   };
 }

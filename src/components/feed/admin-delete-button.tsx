@@ -19,13 +19,15 @@ export function AdminDeleteButton({ postId }: AdminDeleteButtonProps) {
     startTransition(async () => {
       const result = await adminDeletePost(postId);
       if (result.success && result.data) {
-        const { strikes, accountDeleted, username } = result.data;
+        const { strikes, accountDeleted, username, strikeApplied } = result.data;
         if (accountDeleted) {
-          toast.success(`Strike ${strikes}/3 — Account von @${username} gelöscht`);
+          toast.success(`account von @${username} gelöscht`);
+        } else if (!strikeApplied) {
+          toast.success(`post von @${username} gelöscht, kein strike für admins`);
         } else if (strikes >= 2) {
-          toast.success(`Strike ${strikes}/3 für @${username} — Warnung wird angezeigt`);
+          toast.success(`strike ${strikes}/3 für @${username}: warnung wird angezeigt`);
         } else {
-          toast.success(`Strike ${strikes}/3 für @${username} — Post gelöscht`);
+          toast.success(`strike ${strikes}/3 für @${username}: post gelöscht`);
         }
         setShowConfirm(false);
         router.refresh();

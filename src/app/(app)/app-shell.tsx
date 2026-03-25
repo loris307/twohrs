@@ -15,6 +15,7 @@ export function AppShell({
   username,
   unreadMentionCount = 0,
   moderationStrikes = 0,
+  isAdmin = false,
   showRecoveryBanner = false,
 }: {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ export function AppShell({
   username?: string;
   unreadMentionCount?: number;
   moderationStrikes?: number;
+  isAdmin?: boolean;
   showRecoveryBanner?: boolean;
 }) {
   const { count: mentionCount } = useUnreadMentions(userId, unreadMentionCount);
@@ -31,7 +33,9 @@ export function AppShell({
       <Navbar username={username} mentionCount={mentionCount} />
       <TimeBanner />
       {showRecoveryBanner && <RecoveryEmailBanner />}
-      {moderationStrikes >= 2 && <ModerationWarning strikes={moderationStrikes} />}
+      {!isAdmin && moderationStrikes >= 2 && (
+        <ModerationWarning strikes={moderationStrikes} />
+      )}
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 pb-20 md:pb-6">
         {children}
       </main>

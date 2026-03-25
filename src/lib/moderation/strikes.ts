@@ -15,6 +15,12 @@ type StrikeOptions = {
   banThreshold?: number;
 };
 
+type StrikeProfileRow = {
+  is_admin: boolean | null;
+  moderation_strikes?: number | null;
+  nsfw_strikes?: number | null;
+};
+
 /**
  * Add a moderation strike to a user.
  *
@@ -32,11 +38,22 @@ export async function addModerationStrike(
 
   const { data: profile } = await adminClient
     .from("profiles")
-    .select(column)
+    .select(`is_admin, ${column}`)
     .eq("id", userId)
     .single();
 
-  const currentStrikes = (profile as Record<string, number> | null)?.[column] ?? 0;
+  const profileRow = profile as StrikeProfileRow | null;
+  const currentStrikes = column === "nsfw_strikes"
+    ? profileRow?.nsfw_strikes ?? 0
+    : profileRow?.moderation_strikes ?? 0;
+
+  if (profileRow?.is_admin) {
+    return {
+      newStrikes: currentStrikes,
+      accountDeleted: false,
+    };
+  }
+
   const newStrikes = currentStrikes + 1;
 
   await adminClient
