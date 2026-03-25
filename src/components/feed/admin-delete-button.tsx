@@ -23,11 +23,11 @@ export function AdminDeleteButton({ postId }: AdminDeleteButtonProps) {
         if (accountDeleted) {
           toast.success(`account von @${username} gelöscht`);
         } else if (!strikeApplied) {
-          toast.success(`post von @${username} gelöscht, kein strike weil der account admin ist`);
+          toast.success(`post von @${username} gelöscht, kein strike für admins`);
         } else if (strikes >= 2) {
-          toast.success(`strike ${strikes}/3 für @${username}, warnung wird angezeigt`);
+          toast.success(`strike ${strikes}/3 für @${username}: warnung wird angezeigt`);
         } else {
-          toast.success(`strike ${strikes}/3 für @${username}, post gelöscht`);
+          toast.success(`strike ${strikes}/3 für @${username}: post gelöscht`);
         }
         setShowConfirm(false);
         router.refresh();
