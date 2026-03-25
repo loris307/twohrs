@@ -32,11 +32,19 @@ export async function addModerationStrike(
 
   const { data: profile } = await adminClient
     .from("profiles")
-    .select(column)
+    .select(`is_admin, ${column}`)
     .eq("id", userId)
     .single();
 
   const currentStrikes = (profile as Record<string, number> | null)?.[column] ?? 0;
+
+  if (profile && "is_admin" in profile && profile.is_admin) {
+    return {
+      newStrikes: currentStrikes,
+      accountDeleted: false,
+    };
+  }
+
   const newStrikes = currentStrikes + 1;
 
   await adminClient
