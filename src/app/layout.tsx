@@ -57,7 +57,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" className="dark">
-      <body className={`${inter.variable} font-sans antialiased lowercase`}>
+      <body className={`${inter.variable} font-sans antialiased uppercase`}>
         <NavigationProgress />
         <ServiceWorkerRegister />
         {children}
