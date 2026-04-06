@@ -6,11 +6,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
 import {
   isOwnedCommentImagePath,
+  normalizeStorageObjectPath,
   storageListHasExactName,
 } from "@/lib/utils/private-media";
 import {
   MAX_COMMENTS_PER_SESSION,
   MAX_COMMENT_THREAD_DEPTH,
+  COMMENT_ACTION_RATE_LIMIT_MAX,
+  COMMENT_ACTION_RATE_LIMIT_WINDOW_MS,
   VOTE_ACTION_RATE_LIMIT_MAX,
   VOTE_ACTION_RATE_LIMIT_WINDOW_MS,
 } from "@/lib/constants";
@@ -19,6 +22,15 @@ import { extractMentions } from "@/lib/utils/mentions";
 import { normalizeText } from "@/lib/utils/normalize-text";
 import { checkServerActionRateLimit } from "@/lib/utils/server-action-rate-limit";
 import type { ActionResult } from "@/lib/types";
+
+async function removeStagedCommentImage(
+  imagePath: string
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin.storage.from("memes").remove([imagePath]);
+  } catch {}
+}
 
 export async function createComment(
   postId: string,
@@ -49,6 +61,32 @@ export async function createComment(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
+  const parsed = createCommentSchema.safeParse({ text, imagePath });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  const normalizedImagePath = parsed.data.imagePath
+    ? normalizeStorageObjectPath(parsed.data.imagePath)
+    : null;
+
+  if (parsed.data.imagePath && (!normalizedImagePath || !isOwnedCommentImagePath(normalizedImagePath, user.id))) {
+    return { success: false, error: "Ungültiger Bildpfad" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "comment:create",
+    user.id,
+    COMMENT_ACTION_RATE_LIMIT_MAX,
+    COMMENT_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    if (normalizedImagePath) {
+      await removeStagedCommentImage(normalizedImagePath);
+    }
+    return rateLimitError;
+  }
+
   // Rate limit check (Berlin timezone to align with session window)
   const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
   const startOfDay = new Date(berlinNow);
@@ -66,17 +104,6 @@ export async function createComment(
       success: false,
       error: `Maximal ${MAX_COMMENTS_PER_SESSION} Kommentare pro Tag erlaubt`,
     };
-  }
-
-  const parsed = createCommentSchema.safeParse({ text, imagePath });
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.errors[0].message };
-  }
-
-  const normalizedImagePath = parsed.data.imagePath?.replace(/^\/+/, "") ?? null;
-
-  if (normalizedImagePath && !isOwnedCommentImagePath(normalizedImagePath, user.id)) {
-    return { success: false, error: "Ungültiger Bildpfad" };
   }
 
   // Verify image exists in storage when imagePath provided

@@ -5,15 +5,59 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAppOpen } from "@/lib/utils/time";
-import { MAX_POSTS_PER_SESSION, MAX_CAPTION_LENGTH, MAX_AUDIO_SIZE_BYTES } from "@/lib/constants";
+import {
+  MAX_POSTS_PER_SESSION,
+  MAX_CAPTION_LENGTH,
+  MAX_AUDIO_SIZE_BYTES,
+  POST_ACTION_RATE_LIMIT_MAX,
+  POST_ACTION_RATE_LIMIT_WINDOW_MS,
+} from "@/lib/constants";
 import { extractMentions } from "@/lib/utils/mentions";
 import { extractHashtags } from "@/lib/utils/hashtags";
 import { normalizeText } from "@/lib/utils/normalize-text";
 import { detectImageMime, getExtensionFromMime } from "@/lib/utils/magic-bytes";
 import { detectAudioMime } from "@/lib/utils/audio-magic-bytes";
 import { uuidSchema, createAudioPostSchema } from "@/lib/validations";
-import { isOwnedStoragePath, buildPrivateMediaUrl } from "@/lib/utils/private-media";
+import {
+  isOwnedStoragePath,
+  buildPrivateMediaUrl,
+  normalizeStorageObjectPath,
+} from "@/lib/utils/private-media";
+import { checkServerActionRateLimit } from "@/lib/utils/server-action-rate-limit";
 import type { ActionResult } from "@/lib/types";
+
+type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+type StagedPostBucket = "audio-posts" | "memes";
+
+function getBerlinStartOfDay(): Date {
+  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  const startOfDay = new Date(berlinNow);
+  startOfDay.setHours(0, 0, 0, 0);
+  return startOfDay;
+}
+
+async function getTodaysPostCount(
+  supabase: ServerSupabaseClient,
+  userId: string
+): Promise<number> {
+  const { count } = await supabase
+    .from("posts")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", getBerlinStartOfDay().toISOString());
+
+  return count ?? 0;
+}
+
+async function removeStagedPostMedia(
+  supabase: ServerSupabaseClient,
+  bucket: StagedPostBucket,
+  path: string
+): Promise<void> {
+  try {
+    await supabase.storage.from(bucket).remove([path]);
+  } catch {}
+}
 
 export async function createPost(formData: FormData): Promise<ActionResult> {
   // Time-gate check (Server Action layer)
@@ -32,18 +76,19 @@ export async function createPost(formData: FormData): Promise<ActionResult> {
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Rate limit check (Berlin timezone to align with session window)
-  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
-  const startOfDay = new Date(berlinNow);
-  startOfDay.setHours(0, 0, 0, 0);
+  const rateLimitError = await checkServerActionRateLimit(
+    "post:create",
+    user.id,
+    POST_ACTION_RATE_LIMIT_MAX,
+    POST_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    return rateLimitError;
+  }
 
-  const { count } = await supabase
-    .from("posts")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("created_at", startOfDay.toISOString());
+  const dailyPostCount = await getTodaysPostCount(supabase, user.id);
 
-  if ((count ?? 0) >= MAX_POSTS_PER_SESSION) {
+  if (dailyPostCount >= MAX_POSTS_PER_SESSION) {
     return {
       success: false,
       error: `Maximal ${MAX_POSTS_PER_SESSION} Posts pro Tag erlaubt`,
@@ -223,18 +268,35 @@ export async function createPostRecord(
     return { success: false, error: "Nicht eingeloggt" };
   }
 
-  // Rate limit check (Berlin timezone to align with session window)
-  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
-  const startOfDay = new Date(berlinNow);
-  startOfDay.setHours(0, 0, 0, 0);
+  let ownedImagePath: string | null = null;
+  let imageBuffer: Buffer | null = null;
+  let publicUrl: string | null = null;
 
-  const { count } = await supabase
-    .from("posts")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("created_at", startOfDay.toISOString());
+  if (imagePath) {
+    const normalizedImagePath = normalizeStorageObjectPath(imagePath);
+    if (!normalizedImagePath || !isOwnedStoragePath(normalizedImagePath, user.id)) {
+      return { success: false, error: "Ungültiger Bildpfad" };
+    }
 
-  if ((count ?? 0) >= MAX_POSTS_PER_SESSION) {
+    ownedImagePath = normalizedImagePath;
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "post:create",
+    user.id,
+    POST_ACTION_RATE_LIMIT_MAX,
+    POST_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    if (ownedImagePath) {
+      await removeStagedPostMedia(supabase, "memes", ownedImagePath);
+    }
+    return rateLimitError;
+  }
+
+  const dailyPostCount = await getTodaysPostCount(supabase, user.id);
+
+  if (dailyPostCount >= MAX_POSTS_PER_SESSION) {
     return {
       success: false,
       error: `Maximal ${MAX_POSTS_PER_SESSION} Posts pro Tag erlaubt`,
@@ -248,18 +310,7 @@ export async function createPostRecord(
     };
   }
 
-  let ownedImagePath: string | null = null;
-  let imageBuffer: Buffer | null = null;
-  let publicUrl: string | null = null;
-
-  if (imagePath) {
-    const normalizedImagePath = imagePath.replace(/^\/+/, "");
-    if (!isOwnedStoragePath(normalizedImagePath, user.id)) {
-      return { success: false, error: "Ungültiger Bildpfad" };
-    }
-
-    ownedImagePath = normalizedImagePath;
-
+  if (ownedImagePath) {
     const { data: storedImage, error: downloadError } = await supabase.storage
       .from("memes")
       .download(ownedImagePath);
@@ -406,24 +457,6 @@ export async function createAudioPostRecord(
     return { success: false, error: parsed.error.errors[0].message };
   }
 
-  // Rate limit check (Berlin timezone to align with session window)
-  const berlinNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
-  const startOfDay = new Date(berlinNow);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const { count } = await supabase
-    .from("posts")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("created_at", startOfDay.toISOString());
-
-  if ((count ?? 0) >= MAX_POSTS_PER_SESSION) {
-    return {
-      success: false,
-      error: `Maximal ${MAX_POSTS_PER_SESSION} Posts pro Tag erlaubt`,
-    };
-  }
-
   if (caption && caption.length > MAX_CAPTION_LENGTH) {
     return {
       success: false,
@@ -432,9 +465,29 @@ export async function createAudioPostRecord(
   }
 
   // Verify owned storage path
-  const normalizedAudioPath = audioPath.replace(/^\/+/, "");
-  if (!isOwnedStoragePath(normalizedAudioPath, user.id)) {
+  const normalizedAudioPath = normalizeStorageObjectPath(parsed.data.audioPath);
+  if (!normalizedAudioPath || !isOwnedStoragePath(normalizedAudioPath, user.id)) {
     return { success: false, error: "Ungültiger Audio-Pfad" };
+  }
+
+  const rateLimitError = await checkServerActionRateLimit(
+    "post:create",
+    user.id,
+    POST_ACTION_RATE_LIMIT_MAX,
+    POST_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (rateLimitError) {
+    await removeStagedPostMedia(supabase, "audio-posts", normalizedAudioPath);
+    return rateLimitError;
+  }
+
+  const dailyPostCount = await getTodaysPostCount(supabase, user.id);
+
+  if (dailyPostCount >= MAX_POSTS_PER_SESSION) {
+    return {
+      success: false,
+      error: `Maximal ${MAX_POSTS_PER_SESSION} Posts pro Tag erlaubt`,
+    };
   }
 
   // Download and validate audio file signature
