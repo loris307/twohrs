@@ -108,8 +108,15 @@ export const API_RATE_LIMITS: RouteRateLimit[] = [
   { pattern: "/api/mentions", limit: 60 },
 ];
 
-export const PAGE_RATE_LIMITS: RouteRateLimit[] = [
+export const EXACT_PAGE_RATE_LIMITS: RouteRateLimit[] = [
   { pattern: "/", limit: 20 },
+  { pattern: "/about", limit: 20 },
+  { pattern: "/auth/login", limit: 20 },
+  { pattern: "/auth/signup", limit: 20 },
+];
+
+export const PREFIX_PAGE_RATE_LIMITS: RouteRateLimit[] = [
+  { pattern: "/post/", limit: 20 },
 ];
 
 export const DEFAULT_API_RATE_LIMIT = 30;
@@ -127,10 +134,21 @@ export function getRateLimitForPath(pathname: string): number {
 }
 
 export function getPageRateLimitForPath(pathname: string): number | null {
-  for (const route of PAGE_RATE_LIMITS) {
+  if (pathname === "/auth/callback" || pathname.startsWith("/auth/callback/")) {
+    return null;
+  }
+
+  for (const route of EXACT_PAGE_RATE_LIMITS) {
     if (pathname === route.pattern) {
       return route.limit;
     }
   }
+
+  for (const route of PREFIX_PAGE_RATE_LIMITS) {
+    if (pathname.startsWith(route.pattern)) {
+      return route.limit;
+    }
+  }
+
   return null;
 }

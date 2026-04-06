@@ -64,7 +64,7 @@ describe("page rate limiting", () => {
     });
 
     const { middleware } = await import("./middleware");
-    const req = new NextRequest("https://twohrs.com/about", {
+    const req = new NextRequest("https://twohrs.com/leaderboard", {
       headers: { "x-real-ip": "1.2.3.4" },
     });
     await middleware(req);
@@ -81,5 +81,142 @@ describe("page rate limiting", () => {
     expect(response.status).toBe(429);
     expect(checkRateLimitMock).not.toHaveBeenCalled();
     expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 for /auth/login when rate limit is exceeded, before updateSession runs", async () => {
+    checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0 });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/login", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    const response = await middleware(req);
+
+    expect(response.status).toBe(429);
+    expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 for /auth/signup when rate limit is exceeded, before updateSession runs", async () => {
+    checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0 });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/signup", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    const response = await middleware(req);
+
+    expect(response.status).toBe(429);
+    expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 for /about when rate limit is exceeded, before updateSession runs", async () => {
+    checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0 });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/about", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    const response = await middleware(req);
+
+    expect(response.status).toBe(429);
+    expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 for /post/abc when rate limit is exceeded, before updateSession runs", async () => {
+    checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0 });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/post/abc", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    const response = await middleware(req);
+
+    expect(response.status).toBe(429);
+    expect(updateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("skips page rate limiting for /auth/callback", async () => {
+    updateSessionMock.mockResolvedValue({
+      user: null,
+      supabase: { from: vi.fn() },
+      supabaseResponse: NextResponse.next(),
+    });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/callback", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    await middleware(req);
+
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(updateSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips page rate limiting for /auth/callback/reset", async () => {
+    updateSessionMock.mockResolvedValue({
+      user: null,
+      supabase: { from: vi.fn() },
+      supabaseResponse: NextResponse.next(),
+    });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/callback/reset", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    await middleware(req);
+
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(updateSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips page rate limiting for /auth/callback/email-change", async () => {
+    updateSessionMock.mockResolvedValue({
+      user: null,
+      supabase: { from: vi.fn() },
+      supabaseResponse: NextResponse.next(),
+    });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/callback/email-change", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    await middleware(req);
+
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(updateSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips page rate limiting for /auth/forgot-password in this patch", async () => {
+    updateSessionMock.mockResolvedValue({
+      user: null,
+      supabase: { from: vi.fn() },
+      supabaseResponse: NextResponse.next(),
+    });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/forgot-password", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    await middleware(req);
+
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(updateSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips page rate limiting for /auth/reset-password in this patch", async () => {
+    updateSessionMock.mockResolvedValue({
+      user: null,
+      supabase: { from: vi.fn() },
+      supabaseResponse: NextResponse.next(),
+    });
+
+    const { middleware } = await import("./middleware");
+    const req = new NextRequest("https://twohrs.com/auth/reset-password", {
+      headers: { "x-real-ip": "1.2.3.4" },
+    });
+    await middleware(req);
+
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
+    expect(updateSessionMock).toHaveBeenCalledTimes(1);
   });
 });

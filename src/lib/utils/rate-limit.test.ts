@@ -50,8 +50,34 @@ describe("getPageRateLimitForPath", () => {
     expect(getPageRateLimitForPath("/")).toBe(20);
   });
 
-  it("returns null for non-rate-limited pages", () => {
-    expect(getPageRateLimitForPath("/about")).toBeNull();
+  it("returns the public page limit for /about", () => {
+    expect(getPageRateLimitForPath("/about")).toBe(20);
+  });
+
+  it("returns the public page limit for /auth/login", () => {
+    expect(getPageRateLimitForPath("/auth/login")).toBe(20);
+  });
+
+  it("returns the public page limit for /auth/signup", () => {
+    expect(getPageRateLimitForPath("/auth/signup")).toBe(20);
+  });
+
+  it("returns the public page limit for dynamic post pages", () => {
+    expect(getPageRateLimitForPath("/post/abc")).toBe(20);
+  });
+
+  it("returns null for callback routes", () => {
+    expect(getPageRateLimitForPath("/auth/callback")).toBeNull();
+    expect(getPageRateLimitForPath("/auth/callback/reset")).toBeNull();
+  });
+
+  it("returns null for reset pages in this patch", () => {
+    expect(getPageRateLimitForPath("/auth/forgot-password")).toBeNull();
+    expect(getPageRateLimitForPath("/auth/reset-password")).toBeNull();
+  });
+
+  it("returns null for unrelated pages", () => {
+    expect(getPageRateLimitForPath("/leaderboard")).toBeNull();
   });
 });
 
