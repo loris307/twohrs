@@ -100,7 +100,7 @@ describe("post action rate limiting", () => {
       insert: insertMock,
     };
 
-    const storageFromMock = vi.fn((_bucket: string) => ({
+    const storageFromMock = vi.fn(() => ({
       remove: removeMock,
       upload: uploadMock,
       download: downloadMock,
