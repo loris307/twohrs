@@ -15,7 +15,15 @@ import { hasEmailIdentity } from "@/lib/utils/auth-email";
 import { checkEmailPolicy } from "@/lib/utils/signup-guards";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { getOwnedMemesFolderPrefixes } from "@/lib/utils/private-media";
-import { MAX_AVATAR_SIZE_BYTES, MAX_AVATAR_SIZE_MB, getBaseUrl } from "@/lib/constants";
+import {
+  MAX_AVATAR_SIZE_BYTES,
+  MAX_AVATAR_SIZE_MB,
+  PROFILE_UPDATE_RATE_LIMIT_MAX,
+  PROFILE_UPDATE_RATE_LIMIT_WINDOW_MS,
+  AVATAR_ACTION_RATE_LIMIT_MAX,
+  AVATAR_ACTION_RATE_LIMIT_WINDOW_MS,
+  getBaseUrl,
+} from "@/lib/constants";
 import { getSupabaseAnonKey, getSupabaseUrl } from "@/lib/supabase/public-env";
 import type { ActionResult } from "@/lib/types";
 
@@ -41,6 +49,15 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   const parsed = updateProfileSchema.safeParse(rawData);
   if (!parsed.success) {
     return { success: false, error: parsed.error.errors[0].message };
+  }
+
+  const rateLimitResult = await checkRateLimit(
+    `profile:update:${user.id}`,
+    PROFILE_UPDATE_RATE_LIMIT_MAX,
+    PROFILE_UPDATE_RATE_LIMIT_WINDOW_MS
+  );
+  if (!rateLimitResult.allowed) {
+    return { success: false, error: "Zu viele Anfragen. Bitte warte kurz." };
   }
 
   const { error } = await supabase
@@ -74,6 +91,15 @@ export async function updateAvatar(formData: FormData): Promise<ActionResult> {
   const avatarFile = formData.get("avatar") as File | null;
   if (!avatarFile || avatarFile.size === 0) {
     return { success: false, error: "Kein Bild ausgewählt" };
+  }
+
+  const rateLimitResult = await checkRateLimit(
+    `profile:avatar:${user.id}`,
+    AVATAR_ACTION_RATE_LIMIT_MAX,
+    AVATAR_ACTION_RATE_LIMIT_WINDOW_MS
+  );
+  if (!rateLimitResult.allowed) {
+    return { success: false, error: "Zu viele Anfragen. Bitte warte kurz." };
   }
 
   // File size check
